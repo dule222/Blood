@@ -2,7 +2,7 @@
 // MULTI-DISEASE BLOOD BANK MANAGEMENT SYSTEM — MAIN SCRIPT
 // ============================================================
 
-const API_BASE = 'http://localhost:5000/api';
+const API_BASE = 'https://bbms-backend-479875250229.asia-south1.run.app/api';
 
 // ─── STATE ───
 let donors = [];
@@ -595,12 +595,25 @@ async function showDeferralDetails(donorId) {
 }
 
 // ─── VIEW DONOR FULL ───
+// ─── VIEW DONOR FULL ───
 async function viewDonorFull(id) {
     try {
-        const data = await apiFetch(`/donors/${id}/history`);
-        const donor = data.donor;
+        // Find donor first to get the correct ID
+        const donor = donors.find(d => 
+            d.donor_uid === id || 
+            d.donor_number === id || 
+            d.system_id === id ||
+            String(d.donor_id) === String(id)
+        );
+        
+        if (!donor) {
+            showToast('Donor not found', 'error');
+            return;
+        }
+        
+        const data = await apiFetch(`/donors/${donor.donor_id}`);
         const summary = data.summary;
-        const displayId = donor.donor_number || donor.donor_uid || '—';
+        const displayId = donor.donor_number || donor.system_id || donor.donor_uid || '—';
         
         let msg = `🩸 DONOR PROFILE: ${donor.first_name} ${donor.last_name}\n`;
         msg += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
@@ -613,11 +626,11 @@ async function viewDonorFull(id) {
         msg += `Status: ${donor.overall_status || donor.unified_status || 'Eligible'}\n\n`;
         
         msg += `📊 SUMMARY:\n`;
-        msg += `  Total Donations: ${summary.total_donations || 0}\n`;
-        msg += `  Total Tests: ${summary.total_tests || 0}\n`;
-        msg += `  Reactive Tests: ${summary.reactive_tests || 0}\n`;
-        msg += `  Active Deferrals: ${summary.active_deferrals || 0}\n`;
-        msg += `  Last Donation: ${summary.last_donation ? new Date(summary.last_donation).toLocaleDateString() : 'Never'}\n\n`;
+        msg += `  Total Donations: ${summary?.total_donations || 0}\n`;
+        msg += `  Total Tests: ${summary?.total_tests || 0}\n`;
+        msg += `  Reactive Tests: ${summary?.reactive_tests || 0}\n`;
+        msg += `  Active Deferrals: ${summary?.active_deferrals || 0}\n`;
+        msg += `  Last Donation: ${summary?.last_donation ? new Date(summary.last_donation).toLocaleDateString() : 'Never'}\n\n`;
         
         if (data.tests && data.tests.length > 0) {
             msg += `🧪 TEST HISTORY:\n`;
@@ -641,14 +654,22 @@ async function viewDonorFull(id) {
 }
 
 // ─── VIEW DONOR (Simple) ───
+// ─── VIEW DONOR (Simple) ───
 function viewDonor(id) {
-    const donor = donors.find(d => d.donor_uid === id || d.donor_number === id || d.donor_id === parseInt(id));
+    // Try to find donor by multiple possible ID fields
+    const donor = donors.find(d => 
+        d.donor_uid === id || 
+        d.donor_number === id || 
+        d.system_id === id ||
+        String(d.donor_id) === String(id)
+    );
+    
     if (!donor) {
         showToast('Donor not found', 'error');
         return;
     }
     
-    const displayId = donor.donor_number || donor.donor_uid || '—';
+    const displayId = donor.donor_number || donor.system_id || donor.donor_uid || donor.donor_id || '—';
     
     let msg = `🩸 DONOR: ${donor.full_name} (${displayId})\n`;
     msg += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
