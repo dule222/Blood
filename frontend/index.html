@@ -1,0 +1,769 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Multi-Disease Blood Bank Management System</title>
+    <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+    <!-- ─── TOAST ─── -->
+    <div id="toast" class="toast"></div>
+
+    <!-- ─── SIDEBAR ─── -->
+    <aside class="sidebar">
+        <div class="logo">🩸 <span>BBMS</span></div>
+        <nav>
+            <a href="#" class="active" data-tab="dashboard">
+                <span class="nav-icon">📊</span>
+                <span>Dashboard</span>
+            </a>
+            <a href="#" data-tab="donors">
+                <span class="nav-icon">👤</span>
+                <span>Donors</span>
+            </a>
+            <a href="#" data-tab="disease-status">
+                <span class="nav-icon">🩺</span>
+                <span>Disease Status</span>
+            </a>
+            <a href="#" data-tab="tests">
+                <span class="nav-icon">🧪</span>
+                <span>Test Results</span>
+            </a>
+            <a href="#" data-tab="deferrals">
+                <span class="nav-icon">🚫</span>
+                <span>Deferrals</span>
+            </a>
+            <a href="#" data-tab="agencies">
+                <span class="nav-icon">🏛️</span>
+                <span>Agencies</span>
+            </a>
+            <a href="#" data-tab="counselling">
+                <span class="nav-icon">🧠</span>
+                <span>Counselling</span>
+            </a>
+        </nav>
+        <div class="bottom-links">
+            <nav>
+                <a href="#" onclick="logout()">
+                    <span class="nav-icon">🚪</span>
+                    <span class="nav-text">Logout</span>
+                </a>
+                <a href="#" onclick="syncFromAgencies()">
+                    <span class="nav-icon">🔄</span>
+                    <span class="nav-text">Sync All</span>
+                </a>
+            </nav>
+        </div>
+    </aside>
+
+    <!-- ─── MAIN ─── -->
+    <div class="main">
+
+        <div class="topbar">
+            <h2 id="pageTitle">📊 Multi-Disease Dashboard</h2>
+            <div class="user">
+                <span id="userName">Loading...</span>
+                <div class="avatar" id="userAvatar">?</div>
+                <button class="btn btn-outline btn-sm" onclick="logout()" style="margin-left:8px;">🚪 Logout</button>
+            </div>
+        </div>
+
+        <!-- ─── DASHBOARD TAB ─── -->
+        <div id="tab-dashboard" class="tab-content active">
+            <div class="stats">
+                <div class="stat-card">
+                    <div class="label">Total Donors</div>
+                    <div class="value" id="statTotal">...</div>
+                </div>
+                <div class="stat-card">
+                    <div class="label">Eligible</div>
+                    <div class="value" id="statEligible">...</div>
+                </div>
+                <div class="stat-card">
+                    <div class="label">Temp Deferred</div>
+                    <div class="value" id="statTemp">...</div>
+                </div>
+                <div class="stat-card">
+                    <div class="label">Perm Deferred</div>
+                    <div class="value" id="statPerm">...</div>
+                </div>
+            </div>
+
+            <!-- Disease Breakdown Stats -->
+            <div class="stats">
+                <div class="stat-card disease-stat hiv-stat">
+                    <div class="label">🦠 HIV Positive</div>
+                    <div class="value" id="statHIV">0</div>
+                </div>
+                <div class="stat-card disease-stat hbv-stat">
+                    <div class="label">🦠 HBV Positive</div>
+                    <div class="value" id="statHBV">0</div>
+                </div>
+                <div class="stat-card disease-stat hcv-stat">
+                    <div class="label">🦠 HCV Positive</div>
+                    <div class="value" id="statHCV">0</div>
+                </div>
+                <div class="stat-card disease-stat syphilis-stat">
+                    <div class="label">🦠 Syphilis Positive</div>
+                    <div class="value" id="statSyphilis">0</div>
+                </div>
+                <div class="stat-card disease-stat malaria-stat">
+                    <div class="label">🦟 Malaria Positive</div>
+                    <div class="value" id="statMalaria">0</div>
+                </div>
+            </div>
+
+            <div class="panel">
+                <div class="panel-header">
+                    <h3>🔄 Donor Status Overview</h3>
+                    <div class="actions">
+                        <button class="btn btn-outline btn-sm" onclick="refreshData()">🔄 Refresh</button>
+                        <button class="btn btn-primary btn-sm" onclick="syncFromAgencies()">📡 Sync All Agencies</button>
+                    </div>
+                </div>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Donor ID</th>
+                                <th>Name</th>
+                                <th>Blood Group</th>
+                                <th>Overall Status</th>
+                                <th>HIV</th>
+                                <th>HBV</th>
+                                <th>HCV</th>
+                                <th>Syphilis</th>
+                                <th>Malaria</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="donorTableBody">
+                            <tr><td colspan="10" class="text-center text-muted">Loading...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- ─── DONORS TAB ─── -->
+        <div id="tab-donors" class="tab-content">
+            
+            <!-- Search Section -->
+            <div class="panel">
+                <div class="panel-header">
+                    <h3>🔍 Check Donor History Before Donation</h3>
+                    <span style="font-size:13px;color:#6f8ea8;">Search by NIC, Phone, Name, or Donor ID</span>
+                </div>
+                <div class="search-donor-area">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>NIC Number</label>
+                            <input type="text" id="searchNIC" placeholder="e.g. 123456789V" />
+                        </div>
+                        <div class="form-group">
+                            <label>Phone Number</label>
+                            <input type="text" id="searchPhone" placeholder="e.g. 0771234567" />
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Full Name</label>
+                            <input type="text" id="searchName" placeholder="e.g. Ravi Sharma" />
+                        </div>
+                        <div class="form-group">
+                            <label>Donor ID</label>
+                            <input type="text" id="searchDonorId" placeholder="e.g. D-0001" />
+                        </div>
+                    </div>
+                    <div style="display:flex; gap:10px; flex-wrap:wrap;">
+                        <button class="btn btn-primary" onclick="searchDonor()">🔍 Search Donor</button>
+                        <button class="btn btn-outline" onclick="clearSearch()">Clear</button>
+                        <button class="btn btn-success" onclick="openModal('donorModal')">+ Register New Donor</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Search Results -->
+            <div id="searchResults" class="panel" style="display:none;">
+                <div class="panel-header">
+                    <h3>📋 Donor History Report</h3>
+                    <span id="searchResultStatus"></span>
+                </div>
+                <div id="searchResultContent"></div>
+            </div>
+
+            <!-- Donor Registry -->
+            <div class="panel">
+                <div class="panel-header">
+                    <h3>👤 Donor Registry</h3>
+                    <div class="actions" style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+                        <input type="text" id="donorSearch" placeholder="Search by name, ID, NIC, or phone..." onkeyup="searchDonors()" style="padding:8px 16px;border-radius:40px;border:1.5px solid #d0deec;font-size:13px;min-width:200px;" />
+                        <button class="btn btn-outline btn-sm" onclick="refreshData()">🔄 Refresh</button>
+                        <button class="btn btn-primary" onclick="openModal('donorModal')">+ Register</button>
+                    </div>
+                </div>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Name</th>
+                                <th>NIC</th>
+                                <th>Group</th>
+                                <th>Phone</th>
+                                <th>Type</th>
+                                <th>Last Donation</th>
+                                <th>Eligibility</th>
+                                <th>Status</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="donorRegistryBody">
+                            <tr><td colspan="10" class="text-center text-muted">Loading...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- ─── DISEASE STATUS TAB ─── -->
+        <div id="tab-disease-status" class="tab-content">
+            <div class="panel">
+                <div class="panel-header">
+                    <h3>🩺 Disease Status by Donor</h3>
+                    <button class="btn btn-outline btn-sm" onclick="loadDiseaseStatus()">🔄 Refresh</button>
+                </div>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Donor</th>
+                                <th>HIV</th>
+                                <th>HBV</th>
+                                <th>HCV</th>
+                                <th>Syphilis</th>
+                                <th>Malaria</th>
+                                <th>Overall</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="diseaseStatusBody">
+                            <tr><td colspan="8" class="text-center text-muted">Loading...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Disease Algorithm Reference -->
+            <div class="panel">
+                <div class="panel-header">
+                    <h3>📋 Disease Testing Algorithms</h3>
+                </div>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Infection</th>
+                                <th>Initial Test</th>
+                                <th>Confirmatory Lab</th>
+                                <th>Positive Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><span class="disease-badge hiv">HIV</span></td>
+                                <td>Test A (Hospital)</td>
+                                <td>NBC → NSACP</td>
+                                <td>Handover to NSACP</td>
+                            </tr>
+                            <tr>
+                                <td><span class="disease-badge hbv">HBV</span></td>
+                                <td>Test A (Hospital)</td>
+                                <td>NBC → NSACP → Virology (Kandy/Colombo MRI)</td>
+                                <td>Treatment OR Reinstate after 1 year</td>
+                            </tr>
+                            <tr>
+                                <td><span class="disease-badge hcv">HCV</span></td>
+                                <td>Test A (Hospital)</td>
+                                <td>NBC → NSACP → Virology (Kandy/Colombo MRI)</td>
+                                <td>Treatment OR Reinstate after 1 year</td>
+                            </tr>
+                            <tr>
+                                <td><span class="disease-badge syphilis">Syphilis</span></td>
+                                <td>VDRL (Hospital)</td>
+                                <td>NBC (TPPA)</td>
+                                <td>STD Clinic OR Annual retesting</td>
+                            </tr>
+                            <tr>
+                                <td><span class="disease-badge malaria">Malaria</span></td>
+                                <td>Thick/Thin Smear (Hospital)</td>
+                                <td>Microscopy → Anti-Malaria Campaign</td>
+                                <td>Anti-Malaria Campaign</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- ─── TESTS TAB ─── -->
+        <div id="tab-tests" class="tab-content">
+            <div class="panel">
+                <div class="panel-header">
+                    <h3>🧪 Test Results</h3>
+                    <button class="btn btn-primary" onclick="openModal('testModal')">+ Enter Result</button>
+                </div>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Donor</th>
+                                <th>Disease</th>
+                                <th>Phase</th>
+                                <th>Method</th>
+                                <th>Result</th>
+                                <th>Agency</th>
+                                <th>Date</th>
+                            </tr>
+                        </thead>
+                        <tbody id="testTableBody">
+                            <tr><td colspan="7" class="text-center text-muted">No tests recorded</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- ─── DEFERRALS TAB ─── -->
+        <div id="tab-deferrals" class="tab-content">
+            <div class="panel">
+                <div class="panel-header">
+                    <h3>🚫 Deferred Donors</h3>
+                    <button class="btn btn-outline btn-sm" onclick="loadDeferrals()">🔄 Refresh</button>
+                </div>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Donor</th>
+                                <th>Type</th>
+                                <th>Disease</th>
+                                <th>Reason</th>
+                                <th>Retest Date</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="deferralTableBody">
+                            <tr><td colspan="6" class="text-center text-muted">Loading...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- ─── AGENCIES TAB ─── -->
+        <div id="tab-agencies" class="tab-content">
+            <div class="panel">
+                <div class="panel-header">
+                    <h3>🏛️ Connected Agencies</h3>
+                    <button class="btn btn-outline btn-sm" onclick="loadAgencies()">🔄 Refresh</button>
+                </div>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Agency Name</th>
+                                <th>Type</th>
+                                <th>City</th>
+                                <th>Status</th>
+                                <th>Last Sync</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="agencyTableBody">
+                            <tr><td colspan="6" class="text-center text-muted">Loading...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- ─── COUNSELLING TAB ─── -->
+        <div id="tab-counselling" class="tab-content">
+            <div class="panel">
+                <div class="panel-header">
+                    <h3>🧠 Counselling Management</h3>
+                    <div class="actions">
+                        <button class="btn btn-primary" onclick="openModal('counsellingModal')">+ New Session</button>
+                        <button class="btn btn-outline btn-sm" onclick="loadCounselling()">🔄 Refresh</button>
+                    </div>
+                </div>
+
+                <!-- Statistics -->
+                <div class="stats">
+                    <div class="stat-card">
+                        <div class="label">Total Sessions</div>
+                        <div class="value" id="counsellingTotal">0</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="label">Completed</div>
+                        <div class="value" id="counsellingCompleted">0</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="label">Pending</div>
+                        <div class="value" id="counsellingPending">0</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="label">Referred</div>
+                        <div class="value" id="counsellingReferred">0</div>
+                    </div>
+                </div>
+
+                <!-- Pending Tasks -->
+                <div class="panel">
+                    <div class="panel-header">
+                        <h4>⏳ Pending Counselling Tasks</h4>
+                    </div>
+                    <div class="table-wrap">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Donor</th>
+                                    <th>Type</th>
+                                    <th>Date</th>
+                                    <th>Status</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="counsellingPendingBody">
+                                <tr><td colspan="5" class="text-center text-muted">Loading...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- All Sessions -->
+                <div class="panel">
+                    <div class="panel-header">
+                        <h4>📋 All Counselling Sessions</h4>
+                    </div>
+                    <div class="table-wrap">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Donor</th>
+                                    <th>Type</th>
+                                    <th>Counsellor</th>
+                                    <th>Date</th>
+                                    <th>Outcome</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="counsellingTableBody">
+                                <tr><td colspan="6" class="text-center text-muted">Loading...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- ─── MODAL: Register Donor ─── -->
+    <div class="modal-overlay" id="donorModal">
+        <div class="modal">
+            <button class="close-btn" onclick="closeModal('donorModal')">×</button>
+            <h3>📝 Register New Donor</h3>
+            <p class="sub">Enter the donor's details to create a record.</p>
+            <form id="donorForm" onsubmit="registerDonor(event)">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>First Name *</label>
+                        <input type="text" id="dFirstName" required />
+                    </div>
+                    <div class="form-group">
+                        <label>Last Name *</label>
+                        <input type="text" id="dLastName" required />
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Date of Birth *</label>
+                        <input type="date" id="dDOB" required />
+                    </div>
+                    <div class="form-group">
+                        <label>Gender</label>
+                        <select id="dGender">
+                            <option value="M">Male</option>
+                            <option value="F">Female</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Blood Group *</label>
+                        <select id="dBloodGroup" required>
+                            <option value="A+">A+</option>
+                            <option value="A-">A−</option>
+                            <option value="B+">B+</option>
+                            <option value="B-">B−</option>
+                            <option value="AB+">AB+</option>
+                            <option value="AB-">AB−</option>
+                            <option value="O+">O+</option>
+                            <option value="O-">O−</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Phone *</label>
+                        <input type="tel" id="dPhone" required />
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>NIC Number</label>
+                        <input type="text" id="dNIC" placeholder="e.g. 123456789V" />
+                    </div>
+                    <div class="form-group">
+                        <label>Passport Number</label>
+                        <input type="text" id="dPassport" placeholder="e.g. N1234567" />
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Donor Type</label>
+                        <select id="dDonorType">
+                            <option value="Regular">Regular</option>
+                            <option value="First-Time">First-Time</option>
+                            <option value="Replacement">Replacement</option>
+                            <option value="Family">Family</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Email</label>
+                        <input type="email" id="dEmail" />
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Address</label>
+                    <input type="text" id="dAddress" placeholder="Street address" />
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>City</label>
+                        <input type="text" id="dCity" placeholder="City" />
+                    </div>
+                    <div class="form-group">
+                        <label>State</label>
+                        <input type="text" id="dState" placeholder="State" />
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Pincode</label>
+                    <input type="text" id="dPincode" placeholder="Pincode" />
+                </div>
+                <div class="btn-group">
+                    <button type="button" class="btn btn-outline" onclick="closeModal('donorModal')">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Register Donor</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ─── MODAL: Enter Test Result ─── -->
+    <div class="modal-overlay" id="testModal">
+        <div class="modal">
+            <button class="close-btn" onclick="closeModal('testModal')">×</button>
+            <h3>🧪 Enter Test Result</h3>
+            <p class="sub">Record the screening test outcome for a donation.</p>
+            <form id="testForm" onsubmit="enterTestResult(event)">
+                <div class="form-group">
+                    <label>Donor ID *</label>
+                    <input type="text" id="tDonorId" placeholder="e.g. D-1024" required />
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Disease *</label>
+                        <select id="tDisease" required>
+                            <option value="HIV">HIV</option>
+                            <option value="HBV">Hepatitis B</option>
+                            <option value="HCV">Hepatitis C</option>
+                            <option value="Syphilis">Syphilis</option>
+                            <option value="Malaria">Malaria</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Phase *</label>
+                        <select id="tPhase" required>
+                            <option value="Initial">Initial Screening (Hospital)</option>
+                            <option value="Confirmatory">Confirmatory Lab</option>
+                            <option value="Final">Final Action</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Method *</label>
+                        <select id="tMethod" required>
+                            <option value="Test A">Test A</option>
+                            <option value="EIA">EIA</option>
+                            <option value="ECI">ECI</option>
+                            <option value="PCR">PCR</option>
+                            <option value="VDRL">VDRL</option>
+                            <option value="TPPA">TPPA</option>
+                            <option value="Smear">Thick/Thin Smear</option>
+                            <option value="Microscopy">Microscopy</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Agency *</label>
+                        <select id="tAgency" required>
+                            <option value="Hospital">Hospital</option>
+                            <option value="NBC">National Blood Center</option>
+                            <option value="NSACP">NSACP</option>
+                            <option value="Virology">Virology (Kandy/Colombo MRI)</option>
+                            <option value="Clinic">STD Clinic</option>
+                            <option value="Campaign">Anti-Malaria Campaign</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Result *</label>
+                        <select id="tResult" required>
+                            <option value="Non-Reactive">Non-Reactive</option>
+                            <option value="Reactive">Reactive</option>
+                            <option value="Detected">Detected</option>
+                            <option value="Not Detected">Not Detected</option>
+                            <option value="Positive">Positive</option>
+                            <option value="Negative">Negative</option>
+                            <option value="Indeterminate">Indeterminate</option>
+                            <option value="Pending">Pending</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Next Action</label>
+                        <select id="tNextAction">
+                            <option value="">None</option>
+                            <option value="Handover to NSACP">Handover to NSACP</option>
+                            <option value="Refer to Virology">Refer to Virology</option>
+                            <option value="1 Year Deferral">1 Year Deferral</option>
+                            <option value="Refer to STD Clinic">Refer to STD Clinic</option>
+                            <option value="Refer to Anti-Malaria Campaign">Refer to Anti-Malaria Campaign</option>
+                            <option value="Reinstate">Reinstate</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Notes</label>
+                    <textarea id="tNotes" rows="2" placeholder="Any additional observations..."></textarea>
+                </div>
+                <div class="btn-group">
+                    <button type="button" class="btn btn-outline" onclick="closeModal('testModal')">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Result</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ─── MODAL: New Counselling Session ─── -->
+    <div class="modal-overlay" id="counsellingModal">
+        <div class="modal">
+            <button class="close-btn" onclick="closeModal('counsellingModal')">×</button>
+            <h3>🧠 New Counselling Session</h3>
+            <p class="sub">Record a new counselling session for a donor.</p>
+            <form id="counsellingForm" onsubmit="createCounsellingSession(event)">
+                <div class="form-group">
+                    <label>Donor ID *</label>
+                    <input type="text" id="cDonorId" placeholder="e.g. D-0003" required />
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Session Type *</label>
+                        <select id="cSessionType" required>
+                            <option value="Pre-Donation">Pre-Donation</option>
+                            <option value="Post-Donation">Post-Donation</option>
+                            <option value="Deferral">Deferral</option>
+                            <option value="Positive Result">Positive Result</option>
+                            <option value="Follow-up">Follow-up</option>
+                            <option value="Remote">Remote</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Counsellor</label>
+                        <input type="text" id="cCounsellor" placeholder="Counsellor name" />
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Location</label>
+                        <input type="text" id="cLocation" placeholder="Counselling location" />
+                    </div>
+                    <div class="form-group">
+                        <label>Duration (minutes)</label>
+                        <input type="number" id="cDuration" placeholder="30" />
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Notes</label>
+                    <textarea id="cNotes" rows="3" placeholder="Session notes..."></textarea>
+                </div>
+                <div class="btn-group">
+                    <button type="button" class="btn btn-outline" onclick="closeModal('counsellingModal')">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Create Session</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ─── MODAL: Record Counselling Outcome ─── -->
+    <div class="modal-overlay" id="counsellingOutcomeModal">
+        <div class="modal">
+            <button class="close-btn" onclick="closeModal('counsellingOutcomeModal')">×</button>
+            <h3>📝 Record Counselling Outcome</h3>
+            <p class="sub">Record the outcome of the counselling session.</p>
+            <form id="counsellingOutcomeForm" onsubmit="recordCounsellingOutcome(event)">
+                <input type="hidden" id="coSessionId" />
+                <div class="form-group">
+                    <label>Outcome Type *</label>
+                    <select id="coOutcomeType" required>
+                        <option value="Completed">Completed</option>
+                        <option value="Referred">Referred</option>
+                        <option value="Treatment Started">Treatment Started</option>
+                        <option value="Follow-up Scheduled">Follow-up Scheduled</option>
+                        <option value="Declined">Declined</option>
+                        <option value="Lost to Follow-up">Lost to Follow-up</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Referral To</label>
+                    <input type="text" id="coReferralTo" placeholder="e.g. NSACP Clinic" />
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Referral Date</label>
+                        <input type="date" id="coReferralDate" />
+                    </div>
+                    <div class="form-group">
+                        <label>Follow-up Date</label>
+                        <input type="date" id="coFollowUpDate" />
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Notes</label>
+                    <textarea id="coNotes" rows="2" placeholder="Outcome notes..."></textarea>
+                </div>
+                <div class="btn-group">
+                    <button type="button" class="btn btn-outline" onclick="closeModal('counsellingOutcomeModal')">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Outcome</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

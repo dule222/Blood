@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Login - BBMS</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Roboto, system-ui, sans-serif;
+            background: linear-gradient(135deg, #0b1f2e 0%, #1f5a7a 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .login-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: 100%;
+            max-width: 420px;
+        }
+
+        .login-box {
+            background: white;
+            border-radius: 28px;
+            padding: 44px 40px;
+            width: 100%;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+
+        .login-box .logo {
+            text-align: center;
+            font-size: 32px;
+            font-weight: 700;
+            color: #0b2b4a;
+            margin-bottom: 4px;
+        }
+
+        .login-box .logo span {
+            color: #1f5a7a;
+        }
+
+        .login-box .subtitle {
+            text-align: center;
+            color: #6f8ea8;
+            font-size: 14px;
+            margin-bottom: 28px;
+        }
+
+        .login-box .form-group {
+            margin-bottom: 20px;
+        }
+
+        .login-box .form-group label {
+            display: block;
+            font-weight: 500;
+            font-size: 14px;
+            color: #1a3448;
+            margin-bottom: 6px;
+        }
+
+        .login-box .form-group input {
+            width: 100%;
+            padding: 12px 16px;
+            border: 1.5px solid #d0deec;
+            border-radius: 12px;
+            font-size: 15px;
+            transition: 0.2s;
+            font-family: inherit;
+        }
+
+        .login-box .form-group input:focus {
+            outline: none;
+            border-color: #1f5a7a;
+            box-shadow: 0 0 0 4px rgba(31, 90, 122, 0.08);
+        }
+
+        .login-box .btn-login {
+            width: 100%;
+            padding: 14px;
+            background: #1f5a7a;
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        .login-box .btn-login:hover {
+            background: #154b67;
+            transform: scale(0.98);
+        }
+
+        .login-box .btn-login:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .login-box .error-msg {
+            color: #b13e3e;
+            font-size: 13px;
+            text-align: center;
+            margin-top: 12px;
+            display: none;
+        }
+
+        .login-box .error-msg.show {
+            display: block;
+        }
+
+        .login-box .footer {
+            text-align: center;
+            margin-top: 24px;
+            font-size: 12px;
+            color: #8aa3bb;
+            line-height: 1.8;
+        }
+
+        .login-box .role-badge {
+            display: inline-block;
+            padding: 2px 12px;
+            border-radius: 40px;
+            font-size: 11px;
+            font-weight: 600;
+            background: #eef3f8;
+            color: #2f5777;
+        }
+
+        .login-box .version {
+            text-align: center;
+            margin-top: 16px;
+            font-size: 11px;
+            color: #bccddb;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <div class="login-box">
+            <div class="logo">🩸 <span>BBMS</span></div>
+            <div class="subtitle">Multi-Disease Blood Bank Management System</div>
+
+            <form id="loginForm" onsubmit="handleLogin(event)">
+                <div class="form-group">
+                    <label>Username</label>
+                    <input type="text" id="username" placeholder="Enter your username" required autofocus />
+                </div>
+                <div class="form-group">
+                    <label>Password</label>
+                    <input type="password" id="password" placeholder="Enter your password" required />
+                </div>
+
+                <div id="errorMsg" class="error-msg">Invalid username or password</div>
+
+                <button type="submit" class="btn-login" id="loginBtn">🔐 Login</button>
+            </form>
+
+            <div class="footer">
+                <p>Demo Accounts:</p>
+                <p>
+                    <span class="role-badge">Admin</span> admin / admin123 &nbsp;|&nbsp;
+                    <span class="role-badge">Director</span> director / director123
+                </p>
+                <p style="margin-top:4px;">
+                    <span class="role-badge">Lab Tech</span> labtech / labtech123 &nbsp;|&nbsp;
+                    <span class="role-badge">Viewer</span> viewer / viewer123
+                </p>
+            </div>
+            <div class="version">v2.1.0</div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:5000/api';
+
+        // ─── CHECK IF ALREADY LOGGED IN ───
+        const token = localStorage.getItem('bbms_token');
+        if (token) {
+            // Verify token
+            fetch(`${API_BASE}/auth/verify`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    // Still valid, redirect to dashboard
+                    window.location.href = 'index.html';
+                } else {
+                    // Token expired, clear and stay on login
+                    localStorage.removeItem('bbms_token');
+                    localStorage.removeItem('bbms_user');
+                }
+            })
+            .catch(() => {
+                localStorage.removeItem('bbms_token');
+                localStorage.removeItem('bbms_user');
+            });
+        }
+
+        // ─── HANDLE LOGIN ───
+        async function handleLogin(event) {
+            event.preventDefault();
+
+            const username = document.getElementById('username').value.trim();
+            const password = document.getElementById('password').value.trim();
+            const loginBtn = document.getElementById('loginBtn');
+            const errorMsg = document.getElementById('errorMsg');
+
+            if (!username || !password) {
+                errorMsg.textContent = 'Please enter both username and password';
+                errorMsg.classList.add('show');
+                return;
+            }
+
+            // Disable button and show loading
+            loginBtn.disabled = true;
+            loginBtn.textContent = '⏳ Logging in...';
+            errorMsg.classList.remove('show');
+
+            try {
+                const response = await fetch(`${API_BASE}/auth/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error || 'Login failed');
+                }
+
+                // Save token and user info
+                localStorage.setItem('bbms_token', data.token);
+                localStorage.setItem('bbms_user', JSON.stringify(data.user));
+
+                // Redirect to main page
+                window.location.href = 'index.html';
+
+            } catch (error) {
+                errorMsg.textContent = error.message || 'Login failed. Please try again.';
+                errorMsg.classList.add('show');
+                loginBtn.disabled = false;
+                loginBtn.textContent = '🔐 Login';
+            }
+        }
+
+        // ─── ENTER KEY TO LOGIN ───
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                const form = document.getElementById('loginForm');
+                if (form) {
+                    form.dispatchEvent(new Event('submit'));
+                }
+            }
+        });
+
+        console.log('🔐 BBMS Login Page loaded');
+        console.log('📡 API Base:', API_BASE);
+    </script>
+</body>
+</html>

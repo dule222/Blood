@@ -1,0 +1,768 @@
+/* ============================================================
+   MULTI-DISEASE BLOOD BANK MANAGEMENT SYSTEM — MAIN STYLES
+   ============================================================ */
+
+/* ─── RESET & BASE ─── */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: #f0f4f9;
+    color: #1a2a3a;
+    display: flex;
+    min-height: 100vh;
+}
+
+/* ─── SIDEBAR ─── */
+.sidebar {
+    width: 250px;
+    background: #0b1f2e;
+    color: #c8dbe9;
+    padding: 28px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    position: fixed;
+    height: 100vh;
+    overflow-y: auto;
+    box-shadow: 4px 0 20px rgba(0, 0, 0, 0.06);
+    z-index: 100;
+}
+
+.sidebar .logo {
+    font-size: 22px;
+    font-weight: 700;
+    color: white;
+    margin-bottom: 24px;
+    letter-spacing: -0.3px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.sidebar .logo span {
+    background: #2a7a9c;
+    padding: 2px 10px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.sidebar nav {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.sidebar nav a {
+    color: #9bb3c9;
+    text-decoration: none;
+    padding: 12px 16px;
+    border-radius: 12px;
+    font-weight: 500;
+    font-size: 14px;
+    transition: 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    cursor: pointer;
+}
+
+.sidebar nav a:hover {
+    background: #1a3448;
+    color: white;
+}
+
+.sidebar nav a.active {
+    background: #1f5a7a;
+    color: white;
+    box-shadow: 0 4px 12px rgba(31, 90, 122, 0.3);
+}
+
+.sidebar .nav-icon {
+    font-size: 18px;
+    width: 28px;
+    text-align: center;
+}
+
+.sidebar .bottom-links {
+    margin-top: auto;
+    border-top: 1px solid #1a3448;
+    padding-top: 16px;
+}
+
+/* ─── MAIN CONTENT ─── */
+.main {
+    margin-left: 250px;
+    flex: 1;
+    padding: 28px 36px 40px;
+    min-height: 100vh;
+}
+
+/* ─── TOP BAR ─── */
+.topbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 16px;
+    margin-bottom: 28px;
+}
+
+.topbar h2 {
+    font-size: 26px;
+    font-weight: 600;
+    color: #0b2b4a;
+}
+
+.topbar .user {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    background: white;
+    padding: 6px 16px 6px 20px;
+    border-radius: 60px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.topbar .user .avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: #1f5a7a;
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    font-size: 16px;
+}
+
+/* ─── STATS CARDS ─── */
+.stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 16px;
+    margin-bottom: 28px;
+}
+
+.stat-card {
+    background: white;
+    border-radius: 18px;
+    padding: 20px 22px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
+    border: 1px solid #e4edf6;
+}
+
+.stat-card .label {
+    font-size: 13px;
+    font-weight: 500;
+    color: #6f8ea8;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+}
+
+.stat-card .value {
+    font-size: 32px;
+    font-weight: 700;
+    color: #0b2b4a;
+    margin-top: 4px;
+}
+
+/* Disease Stats */
+.disease-stat {
+    border-left: 4px solid #6f8ea8;
+}
+
+.disease-stat.hiv-stat {
+    border-left-color: #e74c3c;
+}
+
+.disease-stat.hbv-stat {
+    border-left-color: #f39c12;
+}
+
+.disease-stat.hcv-stat {
+    border-left-color: #2ecc71;
+}
+
+.disease-stat.syphilis-stat {
+    border-left-color: #9b59b6;
+}
+
+.disease-stat.malaria-stat {
+    border-left-color: #e67e22;
+}
+
+/* ─── PANELS ─── */
+.panel {
+    background: white;
+    border-radius: 20px;
+    padding: 22px 24px;
+    border: 1px solid #e4edf6;
+    margin-bottom: 24px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
+}
+
+.panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 18px;
+}
+
+.panel-header h3 {
+    font-size: 18px;
+    font-weight: 600;
+    color: #0b2b4a;
+}
+
+.panel-header .actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+/* ─── BUTTONS ─── */
+.btn {
+    padding: 8px 20px;
+    border: none;
+    border-radius: 40px;
+    font-weight: 500;
+    font-size: 14px;
+    cursor: pointer;
+    transition: 0.2s;
+    background: #eef3f8;
+    color: #1f5a7a;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.btn:hover {
+    transform: scale(0.97);
+}
+
+.btn-primary {
+    background: #1f5a7a;
+    color: white;
+}
+
+.btn-primary:hover {
+    background: #154b67;
+}
+
+.btn-outline {
+    background: transparent;
+    border: 1.5px solid #d0deec;
+}
+
+.btn-outline:hover {
+    background: #f0f5fa;
+}
+
+.btn-sm {
+    padding: 5px 14px;
+    font-size: 12px;
+}
+
+.btn-success {
+    background: #1d7a4f;
+    color: white;
+}
+
+.btn-danger {
+    background: #b13e3e;
+    color: white;
+}
+
+.btn-warning {
+    background: #d4a13e;
+    color: white;
+}
+
+/* ─── SEARCH ─── */
+.search-wrap {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 16px;
+}
+
+.search-wrap input {
+    padding: 8px 16px;
+    border: 1.5px solid #d0deec;
+    border-radius: 40px;
+    font-size: 14px;
+    min-width: 200px;
+    background: #fafcfe;
+    font-family: inherit;
+    flex: 1;
+}
+
+.search-wrap input:focus {
+    outline: none;
+    border-color: #1f5a7a;
+    box-shadow: 0 0 0 4px rgba(31, 90, 122, 0.08);
+}
+
+/* ─── TABLE ─── */
+.table-wrap {
+    overflow-x: auto;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+}
+
+table th {
+    text-align: left;
+    padding: 12px 12px 12px 0;
+    font-weight: 600;
+    color: #3e5f7a;
+    border-bottom: 2px solid #e4edf6;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+}
+
+table td {
+    padding: 14px 12px 14px 0;
+    border-bottom: 1px solid #eff4fa;
+    vertical-align: middle;
+}
+
+table tr:last-child td {
+    border-bottom: none;
+}
+
+table tr:hover td {
+    background: #f8fafc;
+}
+
+/* ─── DISEASE BADGES ─── */
+.disease-badge {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 40px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+.disease-badge.hiv {
+    background: #fde8e8;
+    color: #b13e3e;
+}
+
+.disease-badge.hbv {
+    background: #fef3e0;
+    color: #b87a2a;
+}
+
+.disease-badge.hcv {
+    background: #e0f2e9;
+    color: #1d7a4f;
+}
+
+.disease-badge.syphilis {
+    background: #f0e8f5;
+    color: #7d3c98;
+}
+
+.disease-badge.malaria {
+    background: #fdebd0;
+    color: #a04000;
+}
+
+/* ─── STATUS BADGES ─── */
+.badge-status {
+    display: inline-block;
+    padding: 2px 14px;
+    border-radius: 40px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.badge-status.eligible {
+    background: #e0f2e9;
+    color: #0f6e48;
+}
+
+.badge-status.quarantine {
+    background: #fff3d6;
+    color: #9e7a2a;
+}
+
+.badge-status.temp-deferred {
+    background: #fef0e0;
+    color: #b87a2a;
+}
+
+.badge-status.perm-deferred {
+    background: #fde8e8;
+    color: #b13e3e;
+}
+
+.badge-status.pending {
+    background: #fff3d6;
+    color: #a87d2a;
+}
+
+.badge-status.active {
+    background: #e8f5ed;
+    color: #1d7a4f;
+}
+
+.badge-status.inactive {
+    background: #e9edf2;
+    color: #4d6a82;
+}
+
+.badge-status.reactive {
+    background: #fde8e8;
+    color: #b13e3e;
+}
+
+.badge-status.non-reactive {
+    background: #e0f2e9;
+    color: #0f6e48;
+}
+
+.badge-status.detected {
+    background: #fde8e8;
+    color: #b13e3e;
+}
+
+.badge-status.positive {
+    background: #fde8e8;
+    color: #b13e3e;
+}
+
+.badge-status.negative {
+    background: #e0f2e9;
+    color: #0f6e48;
+}
+
+.badge-status.indeterminate {
+    background: #fef3e0;
+    color: #b87a2a;
+}
+
+/* ─── DISEASE STATUS CELLS ─── */
+.disease-cell {
+    font-size: 12px;
+    font-weight: 500;
+    text-align: center;
+}
+
+.disease-cell.hiv-positive {
+    color: #b13e3e;
+}
+
+.disease-cell.hbv-positive {
+    color: #b87a2a;
+}
+
+.disease-cell.hcv-positive {
+    color: #1d7a4f;
+}
+
+.disease-cell.syphilis-positive {
+    color: #7d3c98;
+}
+
+.disease-cell.malaria-positive {
+    color: #a04000;
+}
+
+.disease-cell.negative {
+    color: #27ae60;
+}
+
+/* ─── MODAL ─── */
+.modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.35);
+    backdrop-filter: blur(4px);
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    padding: 20px;
+}
+
+.modal-overlay.open {
+    display: flex;
+}
+
+.modal {
+    background: white;
+    border-radius: 28px;
+    max-width: 620px;
+    width: 100%;
+    padding: 32px 36px;
+    box-shadow: 0 30px 80px rgba(0, 0, 0, 0.2);
+    max-height: 90vh;
+    overflow-y: auto;
+}
+
+.modal .close-btn {
+    float: right;
+    background: none;
+    border: none;
+    font-size: 28px;
+    color: #8aa3bb;
+    cursor: pointer;
+    line-height: 1;
+}
+
+.modal .close-btn:hover {
+    color: #1a2a3a;
+}
+
+.modal h3 {
+    font-size: 22px;
+    margin-bottom: 4px;
+}
+
+.modal .sub {
+    color: #4d6f8c;
+    margin-bottom: 18px;
+}
+
+/* ─── FORMS ─── */
+.form-group {
+    margin-bottom: 18px;
+}
+
+.form-group label {
+    display: block;
+    font-weight: 500;
+    font-size: 14px;
+    color: #1a3448;
+    margin-bottom: 4px;
+}
+
+.form-group input,
+.form-group select,
+.form-group textarea {
+    width: 100%;
+    padding: 10px 14px;
+    border: 1.5px solid #d0deec;
+    border-radius: 12px;
+    font-size: 14px;
+    font-family: inherit;
+    transition: 0.2s;
+    background: #fafcfe;
+}
+
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+    outline: none;
+    border-color: #1f5a7a;
+    box-shadow: 0 0 0 4px rgba(31, 90, 122, 0.08);
+}
+
+.form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+}
+
+.btn-group {
+    display: flex;
+    gap: 12px;
+    margin-top: 20px;
+    justify-content: flex-end;
+}
+
+/* ─── TABS ─── */
+.tab-content {
+    display: none;
+}
+
+.tab-content.active {
+    display: block;
+}
+
+/* ─── TOAST ─── */
+.toast {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    background: #1a3448;
+    color: white;
+    padding: 14px 24px;
+    border-radius: 12px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+    z-index: 9999;
+    font-weight: 500;
+    display: none;
+    max-width: 400px;
+}
+
+.toast.show {
+    display: block;
+    animation: slideUp 0.3s ease;
+}
+
+.toast.success {
+    background: #1d7a4f;
+}
+
+.toast.error {
+    background: #b13e3e;
+}
+
+.toast.warning {
+    background: #b87a2a;
+}
+
+@keyframes slideUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* ─── UTILITY ─── */
+.text-center {
+    text-align: center;
+}
+
+.text-muted {
+    color: #6f8ea8;
+}
+
+.mt-8 {
+    margin-top: 8px;
+}
+
+.mb-4 {
+    margin-bottom: 4px;
+}
+
+.fw-500 {
+    font-weight: 500;
+}
+
+.fw-600 {
+    font-weight: 600;
+}
+
+/* ─── RESPONSIVE ─── */
+@media (max-width: 820px) {
+    .sidebar {
+        width: 72px;
+        padding: 16px 10px;
+    }
+
+    .sidebar .logo span,
+    .sidebar nav a span:not(.nav-icon) {
+        display: none;
+    }
+
+    .sidebar .logo {
+        font-size: 20px;
+        justify-content: center;
+    }
+
+    .sidebar nav a {
+        padding: 12px;
+        justify-content: center;
+    }
+
+    .main {
+        margin-left: 72px;
+        padding: 20px 16px;
+    }
+
+    .form-row {
+        grid-template-columns: 1fr;
+    }
+
+    .stats {
+        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    }
+}
+
+@media (max-width: 500px) {
+    .stats {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .stat-card .value {
+        font-size: 24px;
+    }
+
+    .topbar h2 {
+        font-size: 20px;
+    }
+
+    .panel {
+        padding: 16px;
+    }
+
+    .modal {
+        padding: 24px 18px;
+    }
+
+    .sidebar {
+        width: 56px;
+        padding: 12px 6px;
+    }
+
+    .main {
+        margin-left: 56px;
+        padding: 14px 10px;
+    }
+
+    .btn {
+        font-size: 12px;
+        padding: 6px 14px;
+    }
+}
+
+/* ─── SCROLLBAR ─── */
+.sidebar::-webkit-scrollbar {
+    width: 4px;
+}
+
+.sidebar::-webkit-scrollbar-thumb {
+    background: #2a4a62;
+    border-radius: 10px;
+}
+
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+::-webkit-scrollbar-track {
+    background: #eef3f8;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #bccddb;
+    border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #9bb3c9;
+}
