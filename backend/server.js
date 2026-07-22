@@ -108,6 +108,8 @@ app.post('/api/webhook/test-result', async (req, res) => {
         }
 
         const agency = agencyResult.rows[0];
+
+        // Validate required fields
         const required = ['donor_uid', 'disease', 'result'];
         for (const field of required) {
             if (!data[field]) {
@@ -118,8 +120,9 @@ app.post('/api/webhook/test-result', async (req, res) => {
             }
         }
 
+        // Get donor_id by donor_uid OR donor_number OR din_number
         const donorResult = await client.query(
-            `SELECT donor_id FROM donors WHERE donor_uid = $1`,
+            `SELECT donor_id FROM donors WHERE donor_uid = $1 OR donor_number = $1 OR din_number = $1`,
             [data.donor_uid]
         );
 
@@ -131,6 +134,8 @@ app.post('/api/webhook/test-result', async (req, res) => {
         }
 
         const donor_id = donorResult.rows[0].donor_id;
+
+        // Get disease_id
         const diseaseResult = await client.query(
             `SELECT disease_id FROM diseases WHERE disease_code = $1 OR disease_name ILIKE $1`,
             [data.disease]
@@ -144,6 +149,8 @@ app.post('/api/webhook/test-result', async (req, res) => {
         }
 
         const disease_id = diseaseResult.rows[0].disease_id;
+
+        // Determine phase number
         const phaseMap = {
             'initial': 1,
             'screening': 1,
@@ -159,6 +166,7 @@ app.post('/api/webhook/test-result', async (req, res) => {
         const phaseNum = phaseMap[phase.toLowerCase()] || 1;
         const phaseName = data.phase_name || phase;
 
+        // Save test result
         const testResult = await client.query(`
             INSERT INTO donor_disease_tests (
                 donor_id, disease_id, phase, phase_name,
@@ -180,6 +188,7 @@ app.post('/api/webhook/test-result', async (req, res) => {
             data.performed_by || agency.agency_name
         ]);
 
+        // Log to algorithm log
         await client.query(`
             INSERT INTO algorithm_log (
                 donor_id, step_name, action_taken, result, performed_by
@@ -193,9 +202,13 @@ app.post('/api/webhook/test-result', async (req, res) => {
             'System (Webhook)'
         ]);
 
+        // ─── AUTO-RECALCULATE DONOR STATUS ───
         const statusResult = await recalculateDonorStatus(client, donor_id);
+
+        // ─── CHECK IF DEFERRAL NEEDED ───
         await checkAndCreateDeferral(client, donor_id, data.disease, data.result);
 
+        // ─── AUTO-TRIGGER COUNSELLING ───
         const positiveResults = ['Reactive', 'Positive', 'Detected'];
         if (positiveResults.includes(data.result)) {
             await triggerCounselling(client, donor_id, data.disease, data.result);
@@ -369,8 +382,9 @@ app.post('/api/webhook/deferral', async (req, res) => {
         }
 
         const agency = agencyResult.rows[0];
+
         const donorResult = await client.query(
-            `SELECT donor_id FROM donors WHERE donor_uid = $1`,
+            `SELECT donor_id FROM donors WHERE donor_uid = $1 OR donor_number = $1`,
             [data.donor_uid]
         );
 
@@ -560,7 +574,7 @@ async function checkAndCreateDeferral(client, donor_id, disease, result) {
     }
 }
 
-// ─── 🧠 HELPER: Trigger counselling ───
+// ─── HELPER: Trigger counselling ───
 async function triggerCounselling(client, donor_id, disease, result) {
     try {
         const existing = await client.query(`
@@ -571,7 +585,7 @@ async function triggerCounselling(client, donor_id, disease, result) {
         `, [donor_id]);
 
         if (existing.rows.length > 0) {
-            return { message: 'Counselling already exists', session: existing.rows[0] };
+            return;
         }
 
         let sessionType = 'Positive Result';
@@ -579,10 +593,9 @@ async function triggerCounselling(client, donor_id, disease, result) {
             sessionType = 'Deferral';
         }
 
-        const sessionResult = await client.query(`
+        await client.query(`
             INSERT INTO counselling_sessions (donor_id, session_type, location, is_remote)
             VALUES ($1, $2, 'NBC Counselling Centre', FALSE)
-            RETURNING *
         `, [donor_id, sessionType]);
 
         await client.query(`
@@ -590,17 +603,10 @@ async function triggerCounselling(client, donor_id, disease, result) {
             VALUES ($1, 'Follow-up', CURRENT_DATE + INTERVAL '7 days')
         `, [donor_id]);
 
-        await client.query(`
-            INSERT INTO algorithm_log (donor_id, step_name, action_taken, result)
-            VALUES ($1, 'Counselling Trigger', $2, $3)
-        `, [donor_id, `Counselling triggered for ${disease} ${result}`, 'Pending']);
-
         console.log(`🧠 Counselling session created for donor ${donor_id}`);
 
-        return { message: 'Counselling triggered successfully', session: sessionResult.rows[0] };
     } catch (err) {
         console.error('Error triggering counselling:', err);
-        throw err;
     }
 }
 
