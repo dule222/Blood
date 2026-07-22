@@ -8,7 +8,9 @@ router.get('/', async (req, res) => {
         const result = await pool.query(`
             SELECT 
                 d.donor_id,
-                d.donor_uid,
+                d.system_id,
+                d.donor_number,
+                d.din_number,
                 d.first_name || ' ' || d.last_name AS full_name,
                 d.blood_group,
                 d.phone,
@@ -21,6 +23,7 @@ router.get('/', async (req, res) => {
                 d.last_screening_date,
                 d.is_eligible,
                 d.created_at AS registered_at,
+                d.status AS donor_status,
                 
                 -- HIV Status
                 (SELECT result FROM donor_disease_tests 
@@ -143,10 +146,9 @@ router.get('/', async (req, res) => {
 });
 
 // ─── SEARCH donors by multiple criteria ───
-// IMPORTANT: This MUST come BEFORE the /:id route
 router.get('/search', async (req, res) => {
     try {
-        const { nic, phone, name, donor_uid, passport } = req.query;
+        const { nic, phone, name, donor_number, passport, system_id } = req.query;
         
         let query = `
             SELECT 
@@ -183,9 +185,14 @@ router.get('/search', async (req, res) => {
             params.push(phone);
             paramCount++;
         }
-        if (donor_uid) {
-            query += ` AND d.donor_uid = $${paramCount}`;
-            params.push(donor_uid);
+        if (system_id) {
+            query += ` AND d.system_id = $${paramCount}`;
+            params.push(system_id);
+            paramCount++;
+        }
+        if (donor_number) {
+            query += ` AND (d.donor_number = $${paramCount} OR d.din_number = $${paramCount})`;
+            params.push(donor_number);
             paramCount++;
         }
         if (name) {
@@ -206,14 +213,12 @@ router.get('/search', async (req, res) => {
             });
         }
         
-        // Check if donor is eligible
         const donor = result.rows[0];
         let eligibility = {
             can_donate: true,
             reason: null
         };
         
-        // Check for active deferrals
         if (donor.active_deferrals > 0) {
             eligibility.can_donate = false;
             const deferral = await pool.query(`
@@ -227,7 +232,6 @@ router.get('/search', async (req, res) => {
             }
         }
         
-        // Check for reactive tests
         if (donor.reactive_tests > 0) {
             eligibility.can_donate = false;
             eligibility.reason = eligibility.reason ? 
@@ -235,7 +239,6 @@ router.get('/search', async (req, res) => {
                 `Has ${donor.reactive_tests} reactive test(s) - needs further evaluation.`;
         }
         
-        // Check overall status for deferral keywords
         const overallStatus = donor.overall_status || '';
         if (overallStatus.includes('Deferred') || overallStatus.includes('Positive')) {
             eligibility.can_donate = false;
@@ -269,13 +272,12 @@ router.get('/:id', async (req, res) => {
     try {
         const { id } = req.params;
         const result = await pool.query(`
-            SELECT * FROM donors WHERE donor_uid = $1 OR donor_id::text = $1
+            SELECT * FROM donors WHERE system_id = $1 OR donor_id::text = $1 OR donor_number = $1 OR din_number = $1
         `, [id]);
         if (result.rows.length === 0) {
             return res.status(404).json({ error: 'Donor not found' });
         }
         
-        // Get disease tests for this donor
         const tests = await pool.query(`
             SELECT 
                 ddt.*,
@@ -290,21 +292,18 @@ router.get('/:id', async (req, res) => {
             ORDER BY ddt.result_date DESC
         `, [result.rows[0].donor_id]);
         
-        // Get deferrals
         const deferrals = await pool.query(`
             SELECT * FROM deferrals 
             WHERE donor_id = $1 
             ORDER BY deferral_date DESC
         `, [result.rows[0].donor_id]);
         
-        // Get donations
         const donations = await pool.query(`
             SELECT * FROM donations 
             WHERE donor_id = $1 
             ORDER BY donation_date DESC
         `, [result.rows[0].donor_id]);
         
-        // Get algorithm log
         const log = await pool.query(`
             SELECT * FROM algorithm_log 
             WHERE donor_id = $1 
@@ -330,9 +329,8 @@ router.get('/:id/history', async (req, res) => {
     try {
         const { id } = req.params;
         
-        // Get donor basic info
         const donorResult = await pool.query(`
-            SELECT * FROM donors WHERE donor_uid = $1 OR donor_id::text = $1
+            SELECT * FROM donors WHERE system_id = $1 OR donor_id::text = $1 OR donor_number = $1 OR din_number = $1
         `, [id]);
         
         if (donorResult.rows.length === 0) {
@@ -340,7 +338,6 @@ router.get('/:id/history', async (req, res) => {
         }
         const donor = donorResult.rows[0];
         
-        // Get all test history
         const tests = await pool.query(`
             SELECT 
                 ddt.*,
@@ -355,21 +352,18 @@ router.get('/:id/history', async (req, res) => {
             ORDER BY ddt.result_date DESC
         `, [donor.donor_id]);
         
-        // Get all deferrals
         const deferrals = await pool.query(`
             SELECT * FROM deferrals 
             WHERE donor_id = $1 
             ORDER BY deferral_date DESC
         `, [donor.donor_id]);
         
-        // Get all donations
         const donations = await pool.query(`
             SELECT * FROM donations 
             WHERE donor_id = $1 
             ORDER BY donation_date DESC
         `, [donor.donor_id]);
         
-        // Get algorithm log
         const log = await pool.query(`
             SELECT * FROM algorithm_log 
             WHERE donor_id = $1 
@@ -377,7 +371,6 @@ router.get('/:id/history', async (req, res) => {
             LIMIT 20
         `, [donor.donor_id]);
         
-        // Calculate summary
         const summary = {
             total_donations: donations.rows.length,
             total_tests: tests.rows.length,
@@ -402,7 +395,7 @@ router.get('/:id/history', async (req, res) => {
     }
 });
 
-// ─── POST create new donor ───
+// ─── POST create new donor (FIXED - NO LPAD) ───
 router.post('/', async (req, res) => {
     try {
         const { 
@@ -419,25 +412,53 @@ router.post('/', async (req, res) => {
             pincode,
             nic,
             passport,
-            donor_type
+            donor_type,
+            donor_number,
+            din_number
         } = req.body;
 
-        // Validate required fields
         if (!first_name || !last_name || !date_of_birth || !phone) {
             return res.status(400).json({ 
                 error: 'First name, last name, date of birth, and phone are required' 
             });
         }
         
-        // Generate unique donor ID
-        const uidResult = await pool.query(`
-            SELECT generate_donor_uid() AS new_uid
+        // ─── Generate system_id (NO LPAD) ───
+        const sysResult = await pool.query(`
+            SELECT COALESCE(MAX(CAST(SUBSTRING(system_id FROM 5) AS INTEGER)), 0) + 1 AS next_id
+            FROM donors
+            WHERE system_id LIKE 'SYS-%'
         `);
-        const donor_uid = uidResult.rows[0].new_uid;
+        const nextSysId = sysResult.rows[0].next_id || 1;
+        const system_id = 'SYS-' + String(nextSysId).padStart(6, '0');
+        
+        // ─── Check if donor_number already exists ───
+        let finalDonorNumber = donor_number || din_number || null;
+        if (finalDonorNumber) {
+            const existing = await pool.query(`
+                SELECT donor_id FROM donors WHERE donor_number = $1 OR din_number = $1
+            `, [finalDonorNumber]);
+            if (existing.rows.length > 0) {
+                return res.status(400).json({ 
+                    error: `Donor number ${finalDonorNumber} already exists in the system` 
+                });
+            }
+        } else {
+            // ─── Generate sequential donor number (NO LPAD) ───
+            const numResult = await pool.query(`
+                SELECT COALESCE(MAX(CAST(SUBSTRING(donor_number FROM 3) AS INTEGER)), 0) + 1 AS next_num
+                FROM donors
+                WHERE donor_number LIKE 'D-%'
+            `);
+            const nextNum = numResult.rows[0].next_num || 1;
+            finalDonorNumber = 'D-' + String(nextNum).padStart(4, '0');
+        }
         
         const result = await pool.query(`
             INSERT INTO donors (
-                donor_uid, 
+                system_id,
+                donor_number,
+                din_number,
                 first_name, 
                 last_name, 
                 date_of_birth, 
@@ -454,10 +475,12 @@ router.post('/', async (req, res) => {
                 donor_type,
                 is_eligible
             )
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
             RETURNING *
         `, [
-            donor_uid, 
+            system_id,
+            finalDonorNumber,
+            din_number || null,
             first_name, 
             last_name, 
             date_of_birth, 
@@ -475,7 +498,10 @@ router.post('/', async (req, res) => {
             true
         ]);
         
-        res.status(201).json(result.rows[0]);
+        res.status(201).json({
+            ...result.rows[0],
+            message: donor_number || din_number ? 'Donor registered with existing number' : 'Donor registered with system-generated number'
+        });
     } catch (err) {
         console.error('Error creating donor:', err);
         res.status(500).json({ error: err.message });
@@ -519,7 +545,7 @@ router.put('/:id', async (req, res) => {
                 donor_type = COALESCE($12, donor_type),
                 is_eligible = COALESCE($13, is_eligible),
                 updated_at = CURRENT_TIMESTAMP
-            WHERE donor_uid = $14 OR donor_id::text = $14
+            WHERE system_id = $14 OR donor_id::text = $14 OR donor_number = $14 OR din_number = $14
             RETURNING *
         `, [
             first_name, 
@@ -560,7 +586,7 @@ router.patch('/:id/eligibility', async (req, res) => {
                 is_eligible = $1,
                 last_screening_date = CURRENT_DATE,
                 updated_at = CURRENT_TIMESTAMP
-            WHERE donor_uid = $2 OR donor_id::text = $2
+            WHERE system_id = $2 OR donor_id::text = $2 OR donor_number = $2 OR din_number = $2
             RETURNING *
         `, [is_eligible, id]);
         
@@ -568,7 +594,6 @@ router.patch('/:id/eligibility', async (req, res) => {
             return res.status(404).json({ error: 'Donor not found' });
         }
         
-        // Log the eligibility change
         await pool.query(`
             INSERT INTO algorithm_log (donor_id, step_name, action_taken, result)
             VALUES ($1, 'Eligibility Update', $2, $3)

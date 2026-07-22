@@ -173,8 +173,8 @@
                             <input type="text" id="searchName" placeholder="e.g. Ravi Sharma" />
                         </div>
                         <div class="form-group">
-                            <label>Donor ID</label>
-                            <input type="text" id="searchDonorId" placeholder="e.g. D-0001" />
+                            <label>Donor Number / ID</label>
+                            <input type="text" id="searchDonorId" placeholder="e.g. D-0001 or 123456789" />
                         </div>
                     </div>
                     <div style="display:flex; gap:10px; flex-wrap:wrap;">
@@ -199,7 +199,7 @@
                 <div class="panel-header">
                     <h3>👤 Donor Registry</h3>
                     <div class="actions" style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
-                        <input type="text" id="donorSearch" placeholder="Search by name, ID, NIC, or phone..." onkeyup="searchDonors()" style="padding:8px 16px;border-radius:40px;border:1.5px solid #d0deec;font-size:13px;min-width:200px;" />
+                        <input type="text" id="donorSearch" placeholder="Search by name, number, NIC, or phone..." onkeyup="searchDonors()" style="padding:8px 16px;border-radius:40px;border:1.5px solid #d0deec;font-size:13px;min-width:200px;" />
                         <button class="btn btn-outline btn-sm" onclick="refreshData()">🔄 Refresh</button>
                         <button class="btn btn-primary" onclick="openModal('donorModal')">+ Register</button>
                     </div>
@@ -208,7 +208,7 @@
                     <table>
                         <thead>
                             <tr>
-                                <th>ID</th>
+                                <th>Donor Number</th>
                                 <th>Name</th>
                                 <th>NIC</th>
                                 <th>Group</th>
@@ -368,22 +368,26 @@
             <div class="panel">
                 <div class="panel-header">
                     <h3>🏛️ Connected Agencies</h3>
-                    <button class="btn btn-outline btn-sm" onclick="loadAgencies()">🔄 Refresh</button>
+                    <div class="actions">
+                        <button class="btn btn-primary" onclick="openModal('agencyModal')">+ Add Agency</button>
+                        <button class="btn btn-outline btn-sm" onclick="loadAgencies()">🔄 Refresh</button>
+                    </div>
                 </div>
                 <div class="table-wrap">
                     <table>
                         <thead>
                             <tr>
                                 <th>Agency Name</th>
+                                <th>Code</th>
                                 <th>Type</th>
                                 <th>City</th>
                                 <th>Status</th>
-                                <th>Last Sync</th>
+                                <th>API Key</th>
                                 <th>Action</th>
                             </tr>
                         </thead>
                         <tbody id="agencyTableBody">
-                            <tr><td colspan="6" class="text-center text-muted">Loading...</td></tr>
+                            <tr><td colspan="7" class="text-center text-muted">Loading...</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -534,6 +538,11 @@
                 </div>
                 <div class="form-row">
                     <div class="form-group">
+                        <label>Donor Number (DIN)</label>
+                        <input type="text" id="dDonorNumber" placeholder="e.g. 123456789 or D-0001" />
+                        <small style="color:#6f8ea8;font-size:11px;">Leave blank to auto-generate</small>
+                    </div>
+                    <div class="form-group">
                         <label>Donor Type</label>
                         <select id="dDonorType">
                             <option value="Regular">Regular</option>
@@ -542,10 +551,10 @@
                             <option value="Family">Family</option>
                         </select>
                     </div>
-                    <div class="form-group">
-                        <label>Email</label>
-                        <input type="email" id="dEmail" />
-                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Email</label>
+                    <input type="email" id="dEmail" />
                 </div>
                 <div class="form-group">
                     <label>Address</label>
@@ -581,8 +590,8 @@
             <p class="sub">Record the screening test outcome for a donation.</p>
             <form id="testForm" onsubmit="enterTestResult(event)">
                 <div class="form-group">
-                    <label>Donor ID *</label>
-                    <input type="text" id="tDonorId" placeholder="e.g. D-1024" required />
+                    <label>Donor Number / ID *</label>
+                    <input type="text" id="tDonorId" placeholder="e.g. D-0001 or 123456789" required />
                 </div>
                 <div class="form-row">
                     <div class="form-group">
@@ -669,6 +678,75 @@
         </div>
     </div>
 
+    <!-- ─── MODAL: Add Agency ─── -->
+    <div class="modal-overlay" id="agencyModal">
+        <div class="modal" style="max-width: 620px;">
+            <button class="close-btn" onclick="closeModal('agencyModal')">×</button>
+            <h3>🏛️ Add New Agency</h3>
+            <p class="sub">Register a new agency to connect to the BBMS network.</p>
+            <form id="agencyForm" onsubmit="addAgency(event)">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Agency Name *</label>
+                        <input type="text" id="aName" placeholder="e.g. Matara General Hospital" required />
+                    </div>
+                    <div class="form-group">
+                        <label>Agency Code *</label>
+                        <input type="text" id="aCode" placeholder="e.g. MGH-01" required />
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Agency Type *</label>
+                        <select id="aType" required>
+                            <option value="Hospital">🏥 Hospital</option>
+                            <option value="NBC">🏛️ National Blood Center</option>
+                            <option value="NSACP">🧬 NSACP</option>
+                            <option value="Virology">🔬 Virology</option>
+                            <option value="Clinic">💊 STD Clinic</option>
+                            <option value="Campaign">🦟 Anti-Malaria Campaign</option>
+                            <option value="Private Lab">🧪 Private Lab</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>City</label>
+                        <input type="text" id="aCity" placeholder="e.g. Colombo" />
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>State/Province</label>
+                        <input type="text" id="aState" placeholder="e.g. Western Province" />
+                    </div>
+                    <div class="form-group">
+                        <label>Phone</label>
+                        <input type="tel" id="aPhone" placeholder="e.g. 041-2222222" />
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Address</label>
+                    <input type="text" id="aAddress" placeholder="Street address" />
+                </div>
+                <div class="form-group">
+                    <label>Email</label>
+                    <input type="email" id="aEmail" placeholder="bloodbank@agency.gov.lk" />
+                </div>
+                <div class="form-group">
+                    <label>API Endpoint (Optional)</label>
+                    <input type="url" id="aApiEndpoint" placeholder="https://agency.gov.lk/api" />
+                </div>
+                <div class="form-group" style="display:flex; align-items:center; gap:12px;">
+                    <label style="margin-bottom:0;">Active</label>
+                    <input type="checkbox" id="aIsActive" checked style="width:20px;height:20px;" />
+                </div>
+                <div class="btn-group">
+                    <button type="button" class="btn btn-outline" onclick="closeModal('agencyModal')">Cancel</button>
+                    <button type="submit" class="btn btn-primary">➕ Add Agency</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <!-- ─── MODAL: New Counselling Session ─── -->
     <div class="modal-overlay" id="counsellingModal">
         <div class="modal">
@@ -677,8 +755,8 @@
             <p class="sub">Record a new counselling session for a donor.</p>
             <form id="counsellingForm" onsubmit="createCounsellingSession(event)">
                 <div class="form-group">
-                    <label>Donor ID *</label>
-                    <input type="text" id="cDonorId" placeholder="e.g. D-0003" required />
+                    <label>Donor Number / ID *</label>
+                    <input type="text" id="cDonorId" placeholder="e.g. D-0003 or 123456789" required />
                 </div>
                 <div class="form-row">
                     <div class="form-group">

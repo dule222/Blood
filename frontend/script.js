@@ -82,7 +82,6 @@ async function apiFetch(endpoint, options = {}) {
     try {
         const res = await fetch(url, config);
         
-        // If unauthorized, redirect to login
         if (res.status === 401) {
             localStorage.removeItem('bbms_token');
             localStorage.removeItem('bbms_user');
@@ -96,7 +95,6 @@ async function apiFetch(endpoint, options = {}) {
         }
         return data;
     } catch (err) {
-        // Don't show toast for 401 (already handled)
         if (err.message !== 'Session expired. Please login again.') {
             showToast(err.message, 'error');
         }
@@ -119,21 +117,18 @@ async function syncFromAgencies() {
 // ─── LOAD DASHBOARD ───
 async function loadDashboard() {
     try {
-        // Load stats
         const stats = await apiFetch('/stats');
         $('statTotal').textContent = stats.total_donors || 0;
         $('statEligible').textContent = stats.eligible_donors || 0;
         $('statTemp').textContent = stats.temp_deferred || 0;
         $('statPerm').textContent = stats.perm_deferred || 0;
 
-        // Disease stats
         $('statHIV').textContent = stats.hiv_positive || 0;
         $('statHBV').textContent = stats.hbv_positive || 0;
         $('statHCV').textContent = stats.hcv_positive || 0;
         $('statSyphilis').textContent = stats.syphilis_positive || 0;
         $('statMalaria').textContent = stats.malaria_positive || 0;
 
-        // Load donors with disease status
         donors = await apiFetch('/donors');
         renderDonorTable(donors);
         renderDonorRegistry(donors);
@@ -147,12 +142,10 @@ async function loadDashboard() {
 // ─── LOAD DEFERRALS ───
 async function loadDeferrals() {
     try {
-        // Fetch deferrals directly from the API
         const deferralsData = await apiFetch('/deferrals');
         renderDeferralTable(deferralsData);
     } catch (err) {
         console.error('Failed to load deferrals from API:', err);
-        // Fallback: try to get from donors data
         if (donors && donors.length > 0) {
             const deferred = donors.filter(d => 
                 d.overall_status && (
@@ -177,20 +170,16 @@ async function loadAgencies() {
 }
 
 // ─── LOAD DISEASE STATUS ───
-// ─── LOAD DISEASE STATUS ───
 async function loadDiseaseStatus() {
     try {
-        // Use the donors data that's already loaded, or fetch it
         if (donors && donors.length > 0) {
             renderDiseaseStatus(donors);
         } else {
-            // Fallback: fetch from API
             const diseaseData = await apiFetch('/disease-status');
             renderDiseaseStatus(diseaseData);
         }
     } catch (err) {
         console.error('Failed to load disease status:', err);
-        // Use donors data if available
         if (donors && donors.length > 0) {
             renderDiseaseStatus(donors);
         }
@@ -261,10 +250,11 @@ function renderDonorTable(data) {
         const hcv = d.hcv_status || '—';
         const syphilis = d.syphilis_status || '—';
         const malaria = d.malaria_status || '—';
+        const displayId = d.donor_number || d.donor_uid || '—';
         
         return `
             <tr>
-                <td><strong>${d.donor_uid}</strong></td>
+                <td><strong>${displayId}</strong></td>
                 <td>${d.full_name}</td>
                 <td>${d.blood_group || '—'}</td>
                 <td><span class="badge-status ${statusClass}">${status}</span></td>
@@ -274,7 +264,7 @@ function renderDonorTable(data) {
                 <td class="disease-cell ${getDiseaseStatusClass(syphilis)}">${getDiseaseStatusIcon(syphilis)} ${syphilis}</td>
                 <td class="disease-cell ${getDiseaseStatusClass(malaria)}">${getDiseaseStatusIcon(malaria)} ${malaria}</td>
                 <td>
-                    <button class="btn btn-sm btn-outline" onclick="viewDonor('${d.donor_uid}')">View</button>
+                    <button class="btn btn-sm btn-outline" onclick="viewDonor('${d.donor_uid || d.donor_number || d.donor_id}')">View</button>
                 </td>
             </tr>
         `;
@@ -290,7 +280,6 @@ function renderDonorRegistry(data) {
     }
     
     tbody.innerHTML = data.slice(0, 50).map(d => {
-        // Determine eligibility
         let eligibility = '✅ Eligible';
         let eligibilityClass = 'eligible';
         const status = d.overall_status || d.status || 'Eligible Donor';
@@ -307,10 +296,11 @@ function renderDonorRegistry(data) {
         }
         
         const statusClass = getBadgeClass(status);
+        const displayId = d.donor_number || d.donor_uid || '—';
         
         return `
             <tr>
-                <td><strong>${d.donor_uid}</strong></td>
+                <td><strong>${displayId}</strong></td>
                 <td>${d.full_name}</td>
                 <td>${d.nic || '—'}</td>
                 <td>${d.blood_group || '—'}</td>
@@ -320,8 +310,8 @@ function renderDonorRegistry(data) {
                 <td><span class="badge-status ${eligibilityClass}">${eligibility}</span></td>
                 <td><span class="badge-status ${statusClass}">${status}</span></td>
                 <td>
-                    <button class="btn btn-sm btn-outline" onclick="viewDonor('${d.donor_uid}')">👁️ View</button>
-                    <button class="btn btn-sm btn-success" onclick="proceedDonation('${d.donor_uid}')">🩸 Donate</button>
+                    <button class="btn btn-sm btn-outline" onclick="viewDonor('${d.donor_uid || d.donor_number || d.donor_id}')">👁️ View</button>
+                    <button class="btn btn-sm btn-success" onclick="proceedDonation('${d.donor_uid || d.donor_number || d.donor_id}')">🩸 Donate</button>
                 </td>
             </tr>
         `;
@@ -334,20 +324,23 @@ function renderDiseaseStatus(data) {
         tbody.innerHTML = `<tr><td colspan="8" class="text-center text-muted">No disease data available</td></tr>`;
         return;
     }
-    tbody.innerHTML = data.slice(0, 50).map(d => `
-        <tr>
-            <td><strong>${d.donor_uid}</strong> — ${d.full_name}</td>
-            <td><span class="badge-status ${d.hiv_status === 'Reactive' || d.hiv_status === 'Positive' ? 'reactive' : 'non-reactive'}">${d.hiv_status || '—'}</span></td>
-            <td><span class="badge-status ${d.hbv_status === 'Reactive' || d.hbv_status === 'Detected' ? 'reactive' : 'non-reactive'}">${d.hbv_status || '—'}</span></td>
-            <td><span class="badge-status ${d.hcv_status === 'Reactive' || d.hcv_status === 'Detected' ? 'reactive' : 'non-reactive'}">${d.hcv_status || '—'}</span></td>
-            <td><span class="badge-status ${d.syphilis_status === 'Reactive' ? 'reactive' : 'non-reactive'}">${d.syphilis_status || '—'}</span></td>
-            <td><span class="badge-status ${d.malaria_status === 'Detected' ? 'reactive' : 'non-reactive'}">${d.malaria_status || '—'}</span></td>
-            <td><span class="badge-status ${getBadgeClass(d.overall_status || d.unified_status)}">${d.overall_status || d.unified_status || 'Unknown'}</span></td>
-            <td>
-                <button class="btn btn-sm btn-outline" onclick="viewDonor('${d.donor_uid}')">View</button>
-            </td>
-        </tr>
-    `).join('');
+    tbody.innerHTML = data.slice(0, 50).map(d => {
+        const displayId = d.donor_number || d.donor_uid || '—';
+        return `
+            <tr>
+                <td><strong>${displayId}</strong> — ${d.full_name}</td>
+                <td><span class="badge-status ${d.hiv_status === 'Reactive' || d.hiv_status === 'Positive' ? 'reactive' : 'non-reactive'}">${d.hiv_status || '—'}</span></td>
+                <td><span class="badge-status ${d.hbv_status === 'Reactive' || d.hbv_status === 'Detected' ? 'reactive' : 'non-reactive'}">${d.hbv_status || '—'}</span></td>
+                <td><span class="badge-status ${d.hcv_status === 'Reactive' || d.hcv_status === 'Detected' ? 'reactive' : 'non-reactive'}">${d.hcv_status || '—'}</span></td>
+                <td><span class="badge-status ${d.syphilis_status === 'Reactive' ? 'reactive' : 'non-reactive'}">${d.syphilis_status || '—'}</span></td>
+                <td><span class="badge-status ${d.malaria_status === 'Detected' ? 'reactive' : 'non-reactive'}">${d.malaria_status || '—'}</span></td>
+                <td><span class="badge-status ${getBadgeClass(d.overall_status || d.unified_status)}">${d.overall_status || d.unified_status || 'Unknown'}</span></td>
+                <td>
+                    <button class="btn btn-sm btn-outline" onclick="viewDonor('${d.donor_uid || d.donor_number || d.donor_id}')">View</button>
+                </td>
+            </tr>
+        `;
+    }).join('');
 }
 
 // ─── RENDER DEFERRAL TABLE ───
@@ -359,18 +352,13 @@ function renderDeferralTable(data) {
     }
     
     tbody.innerHTML = data.map(d => {
-        // Get disease name
         const diseaseName = d.disease_name || d.disease || '—';
-        
-        // Format retest date
         let retestDate = '—';
         if (d.retest_date) {
             const date = new Date(d.retest_date);
             retestDate = date.toLocaleDateString();
         }
-        
-        // Get donor info
-        const donorUid = d.donor_uid || d.donorId || '—';
+        const donorId = d.donor_uid || d.donor_number || d.donorId || '—';
         const donorName = d.donor_name || d.full_name || '—';
         const deferralType = d.deferral_type || d.type || '—';
         const reason = d.deferral_reason || d.reason || '—';
@@ -380,14 +368,14 @@ function renderDeferralTable(data) {
         
         return `
             <tr>
-                <td><strong>${donorUid}</strong> — ${donorName}</td>
+                <td><strong>${donorId}</strong> — ${donorName}</td>
                 <td><span class="badge-status ${deferralType === 'Permanent' ? 'perm-deferred' : 'temp-deferred'}">${deferralType}</span></td>
                 <td>${diseaseName}</td>
                 <td>${reason}</td>
                 <td>${retestDate}</td>
                 <td>
                     <span class="badge-status ${statusClass}">${status}</span>
-                    <button class="btn btn-sm btn-outline" onclick="viewDonor('${donorUid}')">👁️ View</button>
+                    <button class="btn btn-sm btn-outline" onclick="viewDonor('${donorId}')">👁️ View</button>
                     ${deferralType === 'Temporary' && !d.is_reinstated ? `<button class="btn btn-sm btn-success" onclick="reinstateDonor(${deferralId})">✅ Reinstate</button>` : ''}
                 </td>
             </tr>
@@ -438,9 +426,7 @@ async function reinstateDonor(deferralId) {
             method: 'PUT'
         });
         showToast('✅ Donor reinstated successfully!', 'success');
-        // Reload deferrals
         await loadDeferrals();
-        // Reload dashboard
         await loadDashboard();
     } catch (err) {
         console.error('Error reinstating donor:', err);
@@ -464,7 +450,7 @@ async function searchDonor() {
     if (nic) params.append('nic', nic);
     if (phone) params.append('phone', phone);
     if (name) params.append('name', name);
-    if (donorId) params.append('donor_uid', donorId);
+    if (donorId) params.append('donor_number', donorId); // Search by donor number
     
     try {
         const response = await apiFetch(`/donors/search?${params.toString()}`);
@@ -504,12 +490,14 @@ function displaySearchResults(data) {
         '<span class="badge-status perm-deferred">🚫 Not Eligible to Donate</span>';
     statusDiv.innerHTML = statusBadge;
     
+    const displayId = donor.donor_number || donor.donor_uid || '—';
+    
     let html = `
         <div class="donor-history-card">
             <div class="donor-header">
                 <div>
                     <h4>${donor.first_name} ${donor.last_name}</h4>
-                    <p><strong>Donor ID:</strong> ${donor.donor_uid} | <strong>Blood Group:</strong> ${donor.blood_group || 'Not Recorded'}</p>
+                    <p><strong>Donor Number:</strong> ${displayId} | <strong>Blood Group:</strong> ${donor.blood_group || 'Not Recorded'}</p>
                     <p><strong>NIC:</strong> ${donor.nic || 'Not Recorded'} | <strong>Phone:</strong> ${donor.phone || 'Not Recorded'}</p>
                     <p><strong>Donor Type:</strong> ${donor.donor_type || 'Regular'} | <strong>Registered:</strong> ${new Date(donor.created_at).toLocaleDateString()}</p>
                 </div>
@@ -543,9 +531,9 @@ function displaySearchResults(data) {
             </div>
             
             <div class="action-buttons">
-                <button class="btn btn-primary" onclick="viewDonorFull('${donor.donor_uid}')">👁️ View Full History</button>
-                ${eligibility.can_donate ? `<button class="btn btn-success" onclick="proceedDonation('${donor.donor_uid}')">🩸 Proceed with Donation</button>` : ''}
-                ${!eligibility.can_donate ? `<button class="btn btn-danger" onclick="showDeferralDetails('${donor.donor_uid}')">🚫 View Deferral Details</button>` : ''}
+                <button class="btn btn-primary" onclick="viewDonorFull('${donor.donor_uid || donor.donor_number || donor.donor_id}')">👁️ View Full History</button>
+                ${eligibility.can_donate ? `<button class="btn btn-success" onclick="proceedDonation('${donor.donor_uid || donor.donor_number || donor.donor_id}')">🩸 Proceed with Donation</button>` : ''}
+                ${!eligibility.can_donate ? `<button class="btn btn-danger" onclick="showDeferralDetails('${donor.donor_uid || donor.donor_number || donor.donor_id}')">🚫 View Deferral Details</button>` : ''}
                 <button class="btn btn-outline" onclick="closeSearchResults()">Close</button>
             </div>
         </div>
@@ -573,7 +561,6 @@ function clearSearch() {
 function proceedDonation(donorId) {
     if (confirm(`🩸 Proceed with donation for donor ${donorId}?`)) {
         showToast(`✅ Donation process started for ${donorId}`, 'success');
-        // In a real system, this would open a donation form
     }
 }
 
@@ -608,15 +595,16 @@ async function showDeferralDetails(donorId) {
 }
 
 // ─── VIEW DONOR FULL ───
-async function viewDonorFull(uid) {
+async function viewDonorFull(id) {
     try {
-        const data = await apiFetch(`/donors/${uid}/history`);
+        const data = await apiFetch(`/donors/${id}/history`);
         const donor = data.donor;
         const summary = data.summary;
+        const displayId = donor.donor_number || donor.donor_uid || '—';
         
         let msg = `🩸 DONOR PROFILE: ${donor.first_name} ${donor.last_name}\n`;
         msg += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
-        msg += `Donor ID: ${donor.donor_uid}\n`;
+        msg += `Donor Number: ${displayId}\n`;
         msg += `NIC: ${donor.nic || 'Not Recorded'}\n`;
         msg += `Blood Group: ${donor.blood_group || 'Not Recorded'}\n`;
         msg += `Donor Type: ${donor.donor_type || 'Regular'}\n`;
@@ -653,14 +641,16 @@ async function viewDonorFull(uid) {
 }
 
 // ─── VIEW DONOR (Simple) ───
-function viewDonor(uid) {
-    const donor = donors.find(d => d.donor_uid === uid);
+function viewDonor(id) {
+    const donor = donors.find(d => d.donor_uid === id || d.donor_number === id || d.donor_id === parseInt(id));
     if (!donor) {
         showToast('Donor not found', 'error');
         return;
     }
     
-    let msg = `🩸 DONOR: ${donor.full_name} (${donor.donor_uid})\n`;
+    const displayId = donor.donor_number || donor.donor_uid || '—';
+    
+    let msg = `🩸 DONOR: ${donor.full_name} (${displayId})\n`;
     msg += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
     msg += `Blood Group: ${donor.blood_group || '—'}\n`;
     msg += `Overall Status: ${donor.overall_status || donor.unified_status || 'Unknown'}\n\n`;
@@ -684,6 +674,7 @@ function searchDonors() {
         return;
     }
     const filtered = donors.filter(d => 
+        (d.donor_number && d.donor_number.toLowerCase().includes(query)) ||
         d.donor_uid.toLowerCase().includes(query) ||
         d.full_name.toLowerCase().includes(query) ||
         (d.phone && d.phone.includes(query)) ||
@@ -696,7 +687,6 @@ function searchDonors() {
 async function registerDonor(event) {
     event.preventDefault();
     
-    // Get form values
     const firstName = document.getElementById('dFirstName').value.trim();
     const lastName = document.getElementById('dLastName').value.trim();
     const dateOfBirth = document.getElementById('dDOB').value;
@@ -711,8 +701,8 @@ async function registerDonor(event) {
     const nic = document.getElementById('dNIC')?.value?.trim() || '';
     const passport = document.getElementById('dPassport')?.value?.trim() || '';
     const donorType = document.getElementById('dDonorType')?.value || 'Regular';
+    const donorNumber = document.getElementById('dDonorNumber')?.value?.trim() || '';
 
-    // Validate required fields
     if (!firstName || !lastName || !dateOfBirth || !phone) {
         showToast('Please fill in all required fields (First Name, Last Name, DOB, Phone)', 'error');
         return;
@@ -732,7 +722,8 @@ async function registerDonor(event) {
         pincode: pincode || '',
         nic: nic || '',
         passport: passport || '',
-        donor_type: donorType || 'Regular'
+        donor_type: donorType || 'Regular',
+        donor_number: donorNumber || null
     };
 
     try {
@@ -741,7 +732,8 @@ async function registerDonor(event) {
             body: JSON.stringify(data),
         });
         
-        showToast(`✅ Donor ${result.donor_uid} registered successfully!`, 'success');
+        const displayId = result.donor_number || result.donor_uid || '—';
+        showToast(`✅ Donor ${displayId} registered successfully!`, 'success');
         closeModal('donorModal');
         document.getElementById('donorForm').reset();
         await loadDashboard();
@@ -788,7 +780,6 @@ function closeModal(id) {
     $(id).classList.remove('open');
 }
 
-// Close modal on overlay click
 document.querySelectorAll('.modal-overlay').forEach(overlay => {
     overlay.addEventListener('click', function(e) {
         if (e.target === this) {
@@ -821,7 +812,6 @@ document.querySelectorAll('.sidebar nav a[data-tab]').forEach(link => {
         };
         $('pageTitle').textContent = titles[tabId] || 'Dashboard';
 
-        // Load data for specific tabs
         if (tabId === 'deferrals') {
             loadDeferrals();
         } else if (tabId === 'agencies') {
@@ -836,27 +826,21 @@ document.querySelectorAll('.sidebar nav a[data-tab]').forEach(link => {
 
 // ─── COUNSELLING FUNCTIONS ───
 
-// Load counselling data
 async function loadCounselling() {
     try {
-        // Load all sessions
         const sessions = await apiFetch('/counselling');
         renderCounsellingTable(sessions);
         
-        // Load pending tasks
         const pending = await apiFetch('/counselling/pending');
         renderPendingCounselling(pending);
         
-        // Load analytics
         const analytics = await apiFetch('/counselling/analytics');
         updateCounsellingStats(analytics);
-        
     } catch (err) {
         console.error('Failed to load counselling:', err);
     }
 }
 
-// Render counselling table
 function renderCounsellingTable(data) {
     const tbody = $('counsellingTableBody');
     if (!data || data.length === 0) {
@@ -864,22 +848,24 @@ function renderCounsellingTable(data) {
         return;
     }
     
-    tbody.innerHTML = data.slice(0, 50).map(d => `
-        <tr>
-            <td><strong>${d.donor_uid}</strong> — ${d.donor_name}</td>
-            <td><span class="badge-status ${d.session_type === 'Positive Result' ? 'perm-deferred' : 'temp-deferred'}">${d.session_type}</span></td>
-            <td>${d.counsellor_name || '—'}</td>
-            <td>${new Date(d.session_date).toLocaleDateString()}</td>
-            <td>${d.outcome_type || 'Pending'}</td>
-            <td>
-                <button class="btn btn-sm btn-outline" onclick="viewCounselling(${d.session_id})">👁️ View</button>
-                ${!d.outcome_type ? `<button class="btn btn-sm btn-primary" onclick="openCounsellingOutcome(${d.session_id})">📝 Record Outcome</button>` : ''}
-            </td>
-        </tr>
-    `).join('');
+    tbody.innerHTML = data.slice(0, 50).map(d => {
+        const donorId = d.donor_uid || d.donor_number || '—';
+        return `
+            <tr>
+                <td><strong>${donorId}</strong> — ${d.donor_name}</td>
+                <td><span class="badge-status ${d.session_type === 'Positive Result' ? 'perm-deferred' : 'temp-deferred'}">${d.session_type}</span></td>
+                <td>${d.counsellor_name || '—'}</td>
+                <td>${new Date(d.session_date).toLocaleDateString()}</td>
+                <td>${d.outcome_type || 'Pending'}</td>
+                <td>
+                    <button class="btn btn-sm btn-outline" onclick="viewCounselling(${d.session_id})">👁️ View</button>
+                    ${!d.outcome_type ? `<button class="btn btn-sm btn-primary" onclick="openCounsellingOutcome(${d.session_id})">📝 Record Outcome</button>` : ''}
+                </td>
+            </tr>
+        `;
+    }).join('');
 }
 
-// Render pending counselling
 function renderPendingCounselling(data) {
     const tbody = $('counsellingPendingBody');
     if (!data || data.length === 0) {
@@ -887,20 +873,22 @@ function renderPendingCounselling(data) {
         return;
     }
     
-    tbody.innerHTML = data.map(d => `
-        <tr>
-            <td><strong>${d.donor_uid}</strong> — ${d.donor_name}</td>
-            <td>${d.session_type}</td>
-            <td>${new Date(d.session_date).toLocaleDateString()}</td>
-            <td><span class="badge-status pending">Pending</span></td>
-            <td>
-                <button class="btn btn-sm btn-primary" onclick="openCounsellingOutcome(${d.session_id})">📝 Record</button>
-            </td>
-        </tr>
-    `).join('');
+    tbody.innerHTML = data.map(d => {
+        const donorId = d.donor_uid || d.donor_number || '—';
+        return `
+            <tr>
+                <td><strong>${donorId}</strong> — ${d.donor_name}</td>
+                <td>${d.session_type}</td>
+                <td>${new Date(d.session_date).toLocaleDateString()}</td>
+                <td><span class="badge-status pending">Pending</span></td>
+                <td>
+                    <button class="btn btn-sm btn-primary" onclick="openCounsellingOutcome(${d.session_id})">📝 Record</button>
+                </td>
+            </tr>
+        `;
+    }).join('');
 }
 
-// Update counselling stats
 function updateCounsellingStats(data) {
     if (!data || data.length === 0) return;
     
@@ -915,7 +903,6 @@ function updateCounsellingStats(data) {
     $('counsellingReferred').textContent = referred;
 }
 
-// Open counselling outcome modal
 function openCounsellingOutcome(sessionId) {
     $('coSessionId').value = sessionId;
     openModal('counsellingOutcomeModal');
@@ -938,7 +925,6 @@ document.addEventListener('keydown', function(e) {
         refreshData();
     }
     if (e.key === 'Enter') {
-        // Check if search inputs have focus
         const active = document.activeElement;
         if (active && ['searchNIC', 'searchPhone', 'searchName', 'searchDonorId'].includes(active.id)) {
             searchDonor();
@@ -948,16 +934,13 @@ document.addEventListener('keydown', function(e) {
 
 // ─── INIT ───
 document.addEventListener('DOMContentLoaded', function() {
-    // Check if user is logged in
     const token = getToken();
     
     if (!token) {
-        // No token, redirect to login
         window.location.href = 'login.html';
         return;
     }
     
-    // Verify token is valid
     fetch(`${API_BASE}/auth/verify`, {
         headers: { 'Authorization': `Bearer ${token}` }
     })
@@ -968,18 +951,16 @@ document.addEventListener('DOMContentLoaded', function() {
             localStorage.removeItem('bbms_user');
             window.location.href = 'login.html';
         } else {
-            // Update user info if changed
             if (data.user) {
                 localStorage.setItem('bbms_user', JSON.stringify(data.user));
                 updateUserDisplay();
             }
-            // Load dashboard
             loadDashboard();
             console.log('🩸 Multi-Disease Blood Bank Management System loaded.');
             console.log('👤 Logged in as:', data.user?.full_name || data.user?.username);
             console.log('📋 Connected to API:', API_BASE);
             console.log('🦠 Supported Diseases: HIV, HBV, HCV, Syphilis, Malaria');
-            console.log('🔍 Search by: NIC, Phone, Name, Donor ID');
+            console.log('🔍 Search by: NIC, Phone, Name, Donor Number');
             console.log('🧠 Counselling Module: Enabled');
         }
     })
