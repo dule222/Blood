@@ -202,16 +202,19 @@ app.post('/api/webhook/test-result', async (req, res) => {
             'System (Webhook)'
         ]);
 
+        // ─── FIX: Get the result value safely ───
+        const testResultValue = data.result || data.test_result || 'Unknown';
+
         // ─── AUTO-RECALCULATE DONOR STATUS ───
         const statusResult = await recalculateDonorStatus(client, donor_id);
 
         // ─── CHECK IF DEFERRAL NEEDED ───
-        await checkAndCreateDeferral(client, donor_id, data.disease, data.result);
+        await checkAndCreateDeferral(client, donor_id, data.disease, testResultValue);
 
         // ─── AUTO-TRIGGER COUNSELLING ───
         const positiveResults = ['Reactive', 'Positive', 'Detected'];
-        if (positiveResults.includes(data.result)) {
-            await triggerCounselling(client, donor_id, data.disease, data.result);
+        if (positiveResults.includes(testResultValue)) {
+            await triggerCounselling(client, donor_id, data.disease, testResultValue);
             console.log(`🧠 Counselling triggered for donor ${data.donor_uid}`);
         }
 
@@ -222,7 +225,7 @@ app.post('/api/webhook/test-result', async (req, res) => {
             disease: data.disease,
             result: data.result,
             new_status: statusResult?.overall_status || 'Updated',
-            counselling_triggered: positiveResults.includes(data.result),
+            counselling_triggered: positiveResults.includes(testResultValue),
             timestamp: new Date().toISOString()
         });
 
@@ -303,6 +306,9 @@ app.post('/api/webhook/bulk-sync', async (req, res) => {
 
                 if (donor.tests && donor.tests.length > 0) {
                     for (const test of donor.tests) {
+                        // ─── FIX: Get result value safely ───
+                        const testResultValue = test.result || 'Unknown';
+                        
                         await client.query(`
                             INSERT INTO donor_disease_tests (
                                 donor_id, disease_id, phase, phase_name,
@@ -319,7 +325,7 @@ app.post('/api/webhook/bulk-sync', async (req, res) => {
                             test.phase_name || 'Initial',
                             test.method || 'Standard',
                             agency.agency_id,
-                            test.result,
+                            testResultValue,
                             test.test_date || new Date(),
                             test.disease
                         ]);
@@ -443,6 +449,124 @@ app.post('/api/webhook/deferral', async (req, res) => {
     } catch (err) {
         await client.query('ROLLBACK');
         console.error('Deferral webhook error:', err);
+        res.status(500).json({ 
+            success: false, 
+            error: err.message 
+        });
+    } finally {
+        client.release();
+    }
+});
+
+// ─── EXTERNAL API: Simple status update for agencies (FIX) ───
+app.post('/api/external/update-status', async (req, res) => {
+    const client = await pool.connect();
+    try {
+        const { donor_uid, status, deferralReason, deferralCode, deferredUntil, remarks } = req.body;
+        const apiKey = req.headers['x-api-key'] || req.headers['authorization']?.replace('Bearer ', '');
+
+        if (!apiKey) {
+            return res.status(401).json({ 
+                success: false, 
+                error: 'API key required' 
+            });
+        }
+
+        // Verify API key
+        const agencyResult = await client.query(
+            `SELECT agency_id, agency_name FROM agencies WHERE api_key = $1 AND is_active = TRUE`,
+            [apiKey]
+        );
+
+        if (agencyResult.rows.length === 0) {
+            return res.status(401).json({ 
+                success: false, 
+                error: 'Invalid or inactive API key' 
+            });
+        }
+
+        const agency = agencyResult.rows[0];
+
+        // Validate required fields
+        if (!donor_uid) {
+            return res.status(400).json({ 
+                success: false, 
+                error: 'donor_uid is required' 
+            });
+        }
+
+        if (!status) {
+            return res.status(400).json({ 
+                success: false, 
+                error: 'status is required' 
+            });
+        }
+
+        // Find donor
+        const donorResult = await client.query(
+            `SELECT donor_id FROM donors WHERE donor_uid = $1 OR donor_number = $1 OR din_number = $1`,
+            [donor_uid]
+        );
+
+        if (donorResult.rows.length === 0) {
+            return res.status(404).json({ 
+                success: false, 
+                error: `Donor ${donor_uid} not found` 
+            });
+        }
+
+        const donor_id = donorResult.rows[0].donor_id;
+
+        // Update donor status
+        await client.query(`
+            UPDATE donors 
+            SET status = $1, 
+                deferral_reason = $2, 
+                deferral_code = $3, 
+                deferred_until = $4,
+                remarks = $5,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE donor_id = $6
+        `, [
+            status,
+            deferralReason || null,
+            deferralCode || null,
+            deferredUntil || null,
+            remarks || `Updated by ${agency.agency_name}`,
+            donor_id
+        ]);
+
+        // Log the update
+        await client.query(`
+            INSERT INTO algorithm_log (
+                donor_id, step_name, action_taken, result, performed_by
+            )
+            VALUES ($1, $2, $3, $4, $5)
+        `, [
+            donor_id,
+            'External API - Status Update',
+            `Status updated to ${status} by ${agency.agency_name}`,
+            status,
+            agency.agency_name
+        ]);
+
+        // If deferred, create deferral record
+        if (status === 'Temporarily Deferred' || status === 'Permanently Deferred') {
+            await checkAndCreateDeferral(client, donor_id, deferralReason || 'Unknown', status);
+        }
+
+        res.json({ 
+            success: true, 
+            message: 'Donor status updated successfully',
+            donor_uid: donor_uid,
+            new_status: status,
+            updated_by: agency.agency_name,
+            timestamp: new Date().toISOString()
+        });
+
+    } catch (err) {
+        await client.query('ROLLBACK');
+        console.error('External update error:', err);
         res.status(500).json({ 
             success: false, 
             error: err.message 
@@ -618,6 +742,7 @@ app.listen(PORT, '0.0.0.0', () => {
     console.log(`   POST /api/webhook/test-result - Receive single test result`);
     console.log(`   POST /api/webhook/bulk-sync - Receive bulk test results`);
     console.log(`   POST /api/webhook/deferral - Receive deferral from agency`);
+    console.log(`   POST /api/external/update-status - Simple status update (NEW)`);
     console.log(`🧠 Counselling module enabled - Auto-trigger on positive results`);
     console.log(`🔐 Authentication enabled - Protected routes require JWT token`);
 });
