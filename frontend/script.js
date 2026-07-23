@@ -708,7 +708,10 @@ function searchDonors() {
 // ─── REGISTER DONOR ───
 async function registerDonor(event) {
     event.preventDefault();
-    
+    console.log('🔍 Form values:');
+    console.log('dFirstName:', document.getElementById('dFirstName').value);
+    console.log('dLastName:', document.getElementById('dLastName').value);
+    console.log('dDOB:', document.getElementById('dDOB').value);
     const firstName = document.getElementById('dFirstName').value.trim();
     const lastName = document.getElementById('dLastName').value.trim();
     const dateOfBirth = document.getElementById('dDOB').value;
