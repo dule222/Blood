@@ -705,6 +705,7 @@ function searchDonors() {
 }
 
 // ─── REGISTER DONOR ───
+// ─── REGISTER DONOR ───
 async function registerDonor(event) {
     event.preventDefault();
     
@@ -729,7 +730,11 @@ async function registerDonor(event) {
         return;
     }
 
+    // Generate donor_uid if not provided
+    const donorUid = donorNumber || `D-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).substring(2, 5).toUpperCase()}`;
+
     const data = {
+        donor_uid: donorUid,  // ← THIS IS THE KEY FIX
         first_name: firstName,
         last_name: lastName,
         date_of_birth: dateOfBirth,
@@ -747,13 +752,15 @@ async function registerDonor(event) {
         donor_number: donorNumber || null
     };
 
+    console.log('📝 Registering donor with data:', data); // Debug log
+
     try {
         const result = await apiFetch('/donors', {
             method: 'POST',
             body: JSON.stringify(data),
         });
         
-        const displayId = result.donor_number || result.donor_uid || '—';
+        const displayId = result.donor_number || result.donor_uid || donorUid;
         showToast(`✅ Donor ${displayId} registered successfully!`, 'success');
         closeModal('donorModal');
         document.getElementById('donorForm').reset();
@@ -763,7 +770,6 @@ async function registerDonor(event) {
         showToast('Error registering donor. Please check console for details.', 'error');
     }
 }
-
 // ─── ENTER TEST RESULT ───
 async function enterTestResult(event) {
     event.preventDefault();
