@@ -396,6 +396,7 @@ router.get('/:id/history', async (req, res) => {
 });
 
 // ─── POST create new donor (FIXED - NO LPAD) ───
+// ─── POST create new donor (FIXED - NO donor_uid) ───
 router.post('/', async (req, res) => {
     try {
         const { 
@@ -417,13 +418,15 @@ router.post('/', async (req, res) => {
             din_number
         } = req.body;
 
+        console.log('📥 Received donor data:', req.body);
+
         if (!first_name || !last_name || !date_of_birth || !phone) {
             return res.status(400).json({ 
                 error: 'First name, last name, date of birth, and phone are required' 
             });
         }
         
-        // ─── Generate system_id (NO LPAD) ───
+        // ─── Generate system_id ───
         const sysResult = await pool.query(`
             SELECT COALESCE(MAX(CAST(SUBSTRING(system_id FROM 5) AS INTEGER)), 0) + 1 AS next_id
             FROM donors
@@ -444,7 +447,7 @@ router.post('/', async (req, res) => {
                 });
             }
         } else {
-            // ─── Generate sequential donor number (NO LPAD) ───
+            // ─── Generate sequential donor number ───
             const numResult = await pool.query(`
                 SELECT COALESCE(MAX(CAST(SUBSTRING(donor_number FROM 3) AS INTEGER)), 0) + 1 AS next_num
                 FROM donors
@@ -454,6 +457,7 @@ router.post('/', async (req, res) => {
             finalDonorNumber = 'D-' + String(nextNum).padStart(4, '0');
         }
         
+        // ─── Insert donor (NO donor_uid) ───
         const result = await pool.query(`
             INSERT INTO donors (
                 system_id,
@@ -473,9 +477,11 @@ router.post('/', async (req, res) => {
                 nic,
                 passport,
                 donor_type,
-                is_eligible
+                is_eligible,
+                status,
+                created_at
             )
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, CURRENT_TIMESTAMP)
             RETURNING *
         `, [
             system_id,
@@ -495,15 +501,19 @@ router.post('/', async (req, res) => {
             nic || null,
             passport || null,
             donor_type || 'Regular',
-            true
+            true,
+            'Under Review'  // Default status
         ]);
+        
+        console.log('✅ Donor created:', result.rows[0]);
         
         res.status(201).json({
             ...result.rows[0],
             message: donor_number || din_number ? 'Donor registered with existing number' : 'Donor registered with system-generated number'
         });
     } catch (err) {
-        console.error('Error creating donor:', err);
+        console.error('❌ Error creating donor:', err);
+        console.error('❌ Request body was:', req.body);
         res.status(500).json({ error: err.message });
     }
 });
